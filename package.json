@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -30,7 +31,10 @@
     "@types/express": "^5.0.5",
     "@types/hpp": "^0.2.7",
     "@types/morgan": "^1.9.10",
+    "@types/node": "^24.10.0",
     "nodemon": "^3.1.10",
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }
