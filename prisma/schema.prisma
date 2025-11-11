@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../src/generate/client"
 }
 
 datasource db {
@@ -8,130 +8,129 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole{
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  auth0Id   String    @unique
+  avatar    String?
+  firstName String
+  lastName  String?
+  phoneNo   String?
+  createdAt DateTime  @default(now())
+  role      UserRole  @default(Guest)
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  tenant    Tenant?
+}
+
+model Tenant {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  userId      String     @unique
+  description String?
+  profile     String?
+  currency    String     @default("INR")
+  timezone    String     @default("Asia/Kolkate")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  properties  Property[]
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Property {
+  id            String    @id @default(uuid())
+  tenantId      String
+  name          String
+  type          String?
+  address       String
+  gstin         String?
+  city          String
+  state         String
+  country       String
+  postal_code   String
+  latitude      String
+  longitude     String
+  contact_email String
+  contact_phone Int
+  starRating    Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  booking       Booking[]
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  rooms         Room?
+
+  @@index([tenantId])
+}
+
+model Room {
+  id         String     @id @default(uuid())
+  propertyId String     @unique
+  name       String?
+  descrption String?
+  capacity   Int
+  basePrice  Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+  booking    Booking[]
+  property   Property   @relation(fields: [propertyId], references: [id])
+  roomType   RoomType[]
+
+  @@index([propertyId])
+}
+
+model RoomType {
+  id         String    @id @default(uuid())
+  name       String
+  capacity   Int
+  roomId     String
+  roomtype   String[]
+  amenities  Json
+  priceDelta Float?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+  booking    Booking[]
+  room       Room      @relation(fields: [roomId], references: [id])
+
+  @@index([roomId])
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  propertyId  String
+  roomId      String
+  guestId     String
+  roomTypeId  String
+  status      BookingStatus @default(PENDING)
+  totalPrice  Float
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  cancelledAt DateTime?
+  guest       User          @relation(fields: [guestId], references: [id])
+  property    Property      @relation(fields: [propertyId], references: [id])
+  room        Room          @relation(fields: [roomId], references: [id])
+  roomType    RoomType      @relation(fields: [roomTypeId], references: [id])
+
+  @@index([propertyId, roomId, guestId])
+}
+
+enum UserRole {
   Guest
   Staff
   Admin
   Super_Admin
 }
 
-enum BookingStatus{
+enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
-}
-
-model User {
-  id    String @id @default(uuid())
-  firstName  String
-  lastName String?
-  email String @unique
-  avatar String?
-  phoneNo String?
-  role UserRole @default(Guest)
-  tenant Tenant?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  bookings Booking[]
-}
-
-model Tenant {
-  id String @id @default(uuid())
-  name String
-  slug String @unique
-  user User @relation(fields: [userId], references: [id])
-  userId String @unique
-  description String?
-  profile String?
-  currency String @default("INR")
-  timezone String @default("Asia/Kolkate")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  
-  properties Property[]
-  @@index([userId])
-}
-
-model Property{
-  id String @id @default(uuid())
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  tenantId String
-  name String
-  type String?
-  address String
-  gstin String?
-  city String
-  state String
-  country String
-  postal_code String
-  latitude String
-  longitude String
-  contact_email String
-  contact_phone Int
-  starRating Int?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  
-  booking Booking[]
-  rooms Room?
-  @@index([tenantId])
-}
-
-model Room {
-  id String @id @default(uuid())
-  property Property @relation(fields: [propertyId], references:[id])
-  propertyId String @unique
-  name String?
-  descrption String?
-  capacity Int
-  basePrice Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  
-  roomType RoomType[]
-  booking Booking[]
-  @@index([propertyId])
-}
-
-model RoomType {
-  id String @id @default(uuid())
-  name String
-  room Room @relation(fields: [roomId], references: [id])
-  capacity Int
-  roomId String
-  roomtype String[]
-  amenities Json
-  priceDelta  Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  
-  booking Booking[]
-  @@index([roomId])
-}
-
-model Booking{
-  id String @id @default(uuid())
-  property Property @relation(fields: [propertyId], references: [id])
-  propertyId String
-  room Room @relation(fields: [roomId], references: [id])
-  roomId String
-  guest User @relation(fields: [guestId], references: [id])
-  guestId String
-  roomType RoomType @relation(fields: [roomTypeId], references: [id])
-  roomTypeId String
-  status BookingStatus @default(PENDING)
-  totalPrice Float
-  startDate  DateTime
-  endDate    DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  cancelledAt DateTime?
-  
-  @@index([propertyId, roomId, guestId])
 }

@@ -25,6 +25,7 @@ const config: Auth0Config = {
     scope: "openid profile email",
     connection: "google-oauth2",
     prompt: "consent",
+    response_mode: "form_post"
   },
 };
 

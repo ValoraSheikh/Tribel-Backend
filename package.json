@@ -4,8 +4,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "tsc && node dist/app.js",
-    "dev": "nodemon src/app.ts"
+    "start": "tsc && node dist/index.js",
+    "dev": "nodemon src/index.ts"
   },
   "keywords": [],
   "author": "amansheikh",
@@ -35,6 +35,7 @@
     "@types/node": "^24.10.0",
     "nodemon": "^3.1.10",
     "prisma": "^6.19.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
