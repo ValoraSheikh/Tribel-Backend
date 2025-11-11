@@ -1,9 +1,4 @@
-import express, {
-  type ErrorRequestHandler,
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
+import express, { type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -13,10 +8,11 @@ import dotenv from "dotenv";
 import pkg from "express-openid-connect";
 import { auth0middleware } from "./utils/auth/auth0-utils.ts";
 
+import userRouter from "./routes/user.route.ts";
+
 const { requiresAuth } = pkg;
 const app = express();
 dotenv.config({ path: "./.env" });
-const port = process.env.PORT;
 
 app.use(auth0middleware);
 app.use(
@@ -37,6 +33,8 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+app.use("/api/user", userRouter);
+
 app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
 });
@@ -46,17 +44,4 @@ app.get("/profile", requiresAuth(), (req: Request, res: Response) => {
   });
 });
 
-app.use(
-  (
-    err: ErrorRequestHandler,
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) => {
-    console.error(err);
-  },
-);
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+export { app };
