@@ -65,7 +65,7 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
     .json(new ApiResponse(tenant, "Tenant Fetched successfully", 200));
 });
 
-export const getAllTenants = asyncHandler(async (req, res) => {
+export const getAllTenants = asyncHandler(async (_req, res) => {
   const tenant = await prisma.tenant.findMany({
     select: {
       id: true,

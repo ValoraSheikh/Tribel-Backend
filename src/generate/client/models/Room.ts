@@ -501,6 +501,14 @@ export type RoomUncheckedUpdateOneWithoutPropertyNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.RoomUpdateToOneWithWhereWithoutPropertyInput, Prisma.RoomUpdateWithoutPropertyInput>, Prisma.RoomUncheckedUpdateWithoutPropertyInput>
 }
 
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type RoomCreateNestedOneWithoutRoomTypeInput = {
   create?: Prisma.XOR<Prisma.RoomCreateWithoutRoomTypeInput, Prisma.RoomUncheckedCreateWithoutRoomTypeInput>
   connectOrCreate?: Prisma.RoomCreateOrConnectWithoutRoomTypeInput

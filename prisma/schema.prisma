@@ -11,14 +11,14 @@ datasource db {
 model User {
   id        String    @id @default(uuid())
   email     String    @unique
-  auth0Id   String    @unique
   avatar    String?
+  createdAt DateTime  @default(now())
   firstName String
   lastName  String?
   phoneNo   String?
-  createdAt DateTime  @default(now())
   role      UserRole  @default(Guest)
   updatedAt DateTime  @updatedAt
+  auth0Id   String    @unique
   bookings  Booking[]
   tenant    Tenant?
 }
@@ -52,14 +52,15 @@ model Property {
   state         String
   country       String
   postal_code   String
-  latitude      String
-  longitude     String
   contact_email String
-  contact_phone Int
-  starRating    Int?
+  contact_phone String
+  starRating    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
+  images        String[]
+  latitude      Float
+  longitude     Float
   booking       Booking[]
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
   rooms         Room?

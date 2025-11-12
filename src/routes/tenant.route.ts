@@ -11,8 +11,8 @@ const { requiresAuth } = pkg;
 const router = Router();
 
 router.post("/createTenant", requiresAuth(), createTenant);
-router.get("/getTenantDetail/:id", getTenantDetail);
 router.get("/tenants", getAllTenants);
-router.patch("/updateTenant/:id", requiresAuth(), updateTenant);
+router.get("/getTenantDetail/:tenantId", getTenantDetail);
+router.patch("/updateTenant/:tenantId", requiresAuth(), updateTenant);
 
 export default router;
