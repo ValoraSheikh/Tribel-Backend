@@ -117,14 +117,15 @@ export const PropertyScalarFieldEnum = {
   state: 'state',
   country: 'country',
   postal_code: 'postal_code',
-  latitude: 'latitude',
-  longitude: 'longitude',
   contact_email: 'contact_email',
   contact_phone: 'contact_phone',
   starRating: 'starRating',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  deletedAt: 'deletedAt'
+  deletedAt: 'deletedAt',
+  images: 'images',
+  latitude: 'latitude',
+  longitude: 'longitude'
 } as const
 
 export type PropertyScalarFieldEnum = (typeof PropertyScalarFieldEnum)[keyof typeof PropertyScalarFieldEnum]
