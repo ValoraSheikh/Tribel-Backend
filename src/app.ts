@@ -9,6 +9,7 @@ import pkg from "express-openid-connect";
 import { auth0middleware } from "./utils/auth/auth0-utils.ts";
 
 import userRouter from "./routes/user.route.ts";
+import tenantRouter from "./routes/tenant.route.ts"
 
 const { requiresAuth } = pkg;
 const app = express();
@@ -33,7 +34,8 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-app.use("/api/user", userRouter);
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/tenant", tenantRouter);
 
 app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
