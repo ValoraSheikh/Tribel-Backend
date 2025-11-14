@@ -9,18 +9,19 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  avatar    String?
-  createdAt DateTime  @default(now())
-  firstName String
-  lastName  String?
-  phoneNo   String?
-  role      UserRole  @default(Guest)
-  updatedAt DateTime  @updatedAt
-  auth0Id   String    @unique
-  bookings  Booking[]
-  tenant    Tenant?
+  id         String     @id @default(uuid())
+  email      String     @unique
+  avatar     String?
+  createdAt  DateTime   @default(now())
+  firstName  String
+  lastName   String?
+  phoneNo    String?
+  role       UserRole   @default(Guest)
+  updatedAt  DateTime   @updatedAt
+  auth0Id    String     @unique
+  bookings   Booking[]
+  properties Property[]
+  tenant     Tenant?
 }
 
 model Tenant {
@@ -31,7 +32,7 @@ model Tenant {
   description String?
   profile     String?
   currency    String     @default("INR")
-  timezone    String     @default("Asia/Kolkate")
+  timezone    String     @default("Asia/Kolkata")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
@@ -42,9 +43,8 @@ model Tenant {
 }
 
 model Property {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   tenantId      String
-  name          String
   type          String?
   address       String
   gstin         String?
@@ -54,50 +54,75 @@ model Property {
   postal_code   String
   contact_email String
   contact_phone String
-  starRating    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
   images        String[]
   latitude      Float
   longitude     Float
-  booking       Booking[]
-  tenant        Tenant    @relation(fields: [tenantId], references: [id])
-  rooms         Room?
+  amenities     Json?
+  description   String?
+  title         String
+  starRating    Float?
+  adminId       String
+  bookings      Booking[]
+  admin         User           @relation(fields: [adminId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  rooms         Room[]
+  roomTemplate  RoomTemplate[]
 
   @@index([tenantId])
+  @@index([adminId])
 }
 
-model Room {
-  id         String     @id @default(uuid())
-  propertyId String     @unique
-  name       String?
-  descrption String?
-  capacity   Int
-  basePrice  Int
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  deletedAt  DateTime?
-  booking    Booking[]
-  property   Property   @relation(fields: [propertyId], references: [id])
-  roomType   RoomType[]
+model RoomTemplate {
+  id            String   @id @default(uuid())
+  propertyId    String
+  title         String
+  description   String?
+  bedsPerRoom   Int
+  numberOfRooms Int
+  pricePerBed   Int
+  type          String
+  amenities     Json?
+  image         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  rooms         Room[]
+  property      Property @relation(fields: [propertyId], references: [id])
 
   @@index([propertyId])
 }
 
-model RoomType {
-  id         String    @id @default(uuid())
-  name       String
-  capacity   Int
-  roomId     String
-  roomtype   String[]
-  amenities  Json
-  priceDelta Float?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
-  booking    Booking[]
-  room       Room      @relation(fields: [roomId], references: [id])
+model Room {
+  id             String       @id @default(uuid())
+  propertyId     String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  bedCount       Int
+  description    String?
+  pricePerBed    Int
+  roomTemplateId String
+  title          String
+  beds           Bed[]
+  bookings       Booking[]
+  property       Property     @relation(fields: [propertyId], references: [id])
+  roomTemplate   RoomTemplate @relation(fields: [roomTemplateId], references: [id])
+
+  @@index([roomTemplateId])
+  @@index([propertyId])
+}
+
+model Bed {
+  id        String    @id @default(uuid())
+  roomId    String
+  bedNo     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  room      Room      @relation(fields: [roomId], references: [id])
+  bookings  Booking[]
 
   @@index([roomId])
 }
@@ -107,7 +132,6 @@ model Booking {
   propertyId  String
   roomId      String
   guestId     String
-  roomTypeId  String
   status      BookingStatus @default(PENDING)
   totalPrice  Float
   startDate   DateTime
@@ -115,12 +139,17 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   cancelledAt DateTime?
+  bedId       String
+  bed         Bed           @relation(fields: [bedId], references: [id])
   guest       User          @relation(fields: [guestId], references: [id])
   property    Property      @relation(fields: [propertyId], references: [id])
   room        Room          @relation(fields: [roomId], references: [id])
-  roomType    RoomType      @relation(fields: [roomTypeId], references: [id])
 
   @@index([propertyId, roomId, guestId])
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([bedId])
+  @@index([startDate, endDate])
 }
 
 enum UserRole {

@@ -4,7 +4,7 @@ import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
 export const createProperty = asyncHandler(async (req, res) => {
   const { tenantId } = req.params;
   const {
-    name,
+    title,
     type,
     gstin,
     address,
@@ -41,7 +41,8 @@ export const createProperty = asyncHandler(async (req, res) => {
   const property = await prisma.property.create({
     data: {
       tenantId: tenant.id,
-      name: name,
+      adminId: req.user.id,
+      title: title,
       type: type,
       gstin: gstin,
       address: address,
@@ -75,7 +76,7 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
       id: propertyId,
     },
     select: {
-      name: true,
+      title: true,
       type: true,
       address: true,
       gstin: true,
@@ -122,7 +123,7 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
 export const getAllProperties = asyncHandler(async (_req, res) => {
   const properties = await prisma.property.findMany({
     select: {
-      name: true,
+      title: true,
       type: true,
       address: true,
       gstin: true,
@@ -148,7 +149,7 @@ export const getAllProperties = asyncHandler(async (_req, res) => {
 
 export const updateProperty = asyncHandler(async (req, res) => {
   const {
-    name,
+    title,
     type,
     gstin,
     address,
@@ -194,7 +195,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
       id: propertyId,
     },
     data: {
-      name: name,
+      title: title,
       type: type,
       gstin: gstin,
       address: address,

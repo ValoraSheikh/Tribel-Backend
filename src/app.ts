@@ -11,6 +11,7 @@ import { auth0middleware } from "./utils/auth/auth0-utils.ts";
 import userRouter from "./routes/user.route.ts";
 import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
+import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 
 const { requiresAuth } = pkg;
 const app = express();
@@ -38,6 +39,7 @@ if (process.env.NODE_ENV === "development") {
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/tenant", tenantRouter);
 app.use("/api/v1/tenants", propertyRouter);
+app.use("/api/v1/properties", roomTemplateRouter);
 
 app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
