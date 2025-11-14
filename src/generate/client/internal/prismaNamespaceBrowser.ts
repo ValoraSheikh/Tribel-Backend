@@ -52,8 +52,9 @@ export const ModelName = {
   User: 'User',
   Tenant: 'Tenant',
   Property: 'Property',
+  RoomTemplate: 'RoomTemplate',
   Room: 'Room',
-  RoomType: 'RoomType',
+  Bed: 'Bed',
   Booking: 'Booking'
 } as const
 
@@ -75,15 +76,15 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 
 export const UserScalarFieldEnum = {
   id: 'id',
-  email: 'email',
-  avatar: 'avatar',
-  createdAt: 'createdAt',
   firstName: 'firstName',
   lastName: 'lastName',
+  email: 'email',
+  avatar: 'avatar',
   phoneNo: 'phoneNo',
   role: 'role',
+  auth0Id: 'auth0Id',
   updatedAt: 'updatedAt',
-  auth0Id: 'auth0Id'
+  createdAt: 'createdAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -109,7 +110,8 @@ export type TenantScalarFieldEnum = (typeof TenantScalarFieldEnum)[keyof typeof 
 export const PropertyScalarFieldEnum = {
   id: 'id',
   tenantId: 'tenantId',
-  name: 'name',
+  adminId: 'adminId',
+  title: 'title',
   type: 'type',
   address: 'address',
   gstin: 'gstin',
@@ -119,25 +121,46 @@ export const PropertyScalarFieldEnum = {
   postal_code: 'postal_code',
   contact_email: 'contact_email',
   contact_phone: 'contact_phone',
+  latitude: 'latitude',
+  longitude: 'longitude',
+  amenities: 'amenities',
+  description: 'description',
   starRating: 'starRating',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt',
-  images: 'images',
-  latitude: 'latitude',
-  longitude: 'longitude'
+  images: 'images'
 } as const
 
 export type PropertyScalarFieldEnum = (typeof PropertyScalarFieldEnum)[keyof typeof PropertyScalarFieldEnum]
 
 
+export const RoomTemplateScalarFieldEnum = {
+  id: 'id',
+  propertyId: 'propertyId',
+  title: 'title',
+  description: 'description',
+  bedsPerRoom: 'bedsPerRoom',
+  numberOfRooms: 'numberOfRooms',
+  pricePerBed: 'pricePerBed',
+  type: 'type',
+  amenities: 'amenities',
+  image: 'image',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RoomTemplateScalarFieldEnum = (typeof RoomTemplateScalarFieldEnum)[keyof typeof RoomTemplateScalarFieldEnum]
+
+
 export const RoomScalarFieldEnum = {
   id: 'id',
   propertyId: 'propertyId',
-  name: 'name',
-  descrption: 'descrption',
-  capacity: 'capacity',
-  basePrice: 'basePrice',
+  roomTemplateId: 'roomTemplateId',
+  title: 'title',
+  bedCount: 'bedCount',
+  description: 'description',
+  pricePerBed: 'pricePerBed',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt'
@@ -146,20 +169,16 @@ export const RoomScalarFieldEnum = {
 export type RoomScalarFieldEnum = (typeof RoomScalarFieldEnum)[keyof typeof RoomScalarFieldEnum]
 
 
-export const RoomTypeScalarFieldEnum = {
+export const BedScalarFieldEnum = {
   id: 'id',
-  name: 'name',
-  capacity: 'capacity',
   roomId: 'roomId',
-  roomtype: 'roomtype',
-  amenities: 'amenities',
-  priceDelta: 'priceDelta',
+  bedNo: 'bedNo',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt'
 } as const
 
-export type RoomTypeScalarFieldEnum = (typeof RoomTypeScalarFieldEnum)[keyof typeof RoomTypeScalarFieldEnum]
+export type BedScalarFieldEnum = (typeof BedScalarFieldEnum)[keyof typeof BedScalarFieldEnum]
 
 
 export const BookingScalarFieldEnum = {
@@ -167,7 +186,7 @@ export const BookingScalarFieldEnum = {
   propertyId: 'propertyId',
   roomId: 'roomId',
   guestId: 'guestId',
-  roomTypeId: 'roomTypeId',
+  bedId: 'bedId',
   status: 'status',
   totalPrice: 'totalPrice',
   startDate: 'startDate',
@@ -188,11 +207,12 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
-export const JsonNullValueInput = {
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
   JsonNull: JsonNull
 } as const
 
-export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {

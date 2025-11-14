@@ -29,17 +29,20 @@ export type AggregateProperty = {
 export type PropertyAvgAggregateOutputType = {
   latitude: number | null
   longitude: number | null
+  starRating: number | null
 }
 
 export type PropertySumAggregateOutputType = {
   latitude: number | null
   longitude: number | null
+  starRating: number | null
 }
 
 export type PropertyMinAggregateOutputType = {
   id: string | null
   tenantId: string | null
-  name: string | null
+  adminId: string | null
+  title: string | null
   type: string | null
   address: string | null
   gstin: string | null
@@ -49,18 +52,20 @@ export type PropertyMinAggregateOutputType = {
   postal_code: string | null
   contact_email: string | null
   contact_phone: string | null
-  starRating: string | null
+  latitude: number | null
+  longitude: number | null
+  description: string | null
+  starRating: number | null
   createdAt: Date | null
   updatedAt: Date | null
   deletedAt: Date | null
-  latitude: number | null
-  longitude: number | null
 }
 
 export type PropertyMaxAggregateOutputType = {
   id: string | null
   tenantId: string | null
-  name: string | null
+  adminId: string | null
+  title: string | null
   type: string | null
   address: string | null
   gstin: string | null
@@ -70,18 +75,20 @@ export type PropertyMaxAggregateOutputType = {
   postal_code: string | null
   contact_email: string | null
   contact_phone: string | null
-  starRating: string | null
+  latitude: number | null
+  longitude: number | null
+  description: string | null
+  starRating: number | null
   createdAt: Date | null
   updatedAt: Date | null
   deletedAt: Date | null
-  latitude: number | null
-  longitude: number | null
 }
 
 export type PropertyCountAggregateOutputType = {
   id: number
   tenantId: number
-  name: number
+  adminId: number
+  title: number
   type: number
   address: number
   gstin: number
@@ -91,13 +98,15 @@ export type PropertyCountAggregateOutputType = {
   postal_code: number
   contact_email: number
   contact_phone: number
+  latitude: number
+  longitude: number
+  amenities: number
+  description: number
   starRating: number
   createdAt: number
   updatedAt: number
   deletedAt: number
   images: number
-  latitude: number
-  longitude: number
   _all: number
 }
 
@@ -105,17 +114,20 @@ export type PropertyCountAggregateOutputType = {
 export type PropertyAvgAggregateInputType = {
   latitude?: true
   longitude?: true
+  starRating?: true
 }
 
 export type PropertySumAggregateInputType = {
   latitude?: true
   longitude?: true
+  starRating?: true
 }
 
 export type PropertyMinAggregateInputType = {
   id?: true
   tenantId?: true
-  name?: true
+  adminId?: true
+  title?: true
   type?: true
   address?: true
   gstin?: true
@@ -125,18 +137,20 @@ export type PropertyMinAggregateInputType = {
   postal_code?: true
   contact_email?: true
   contact_phone?: true
+  latitude?: true
+  longitude?: true
+  description?: true
   starRating?: true
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
-  latitude?: true
-  longitude?: true
 }
 
 export type PropertyMaxAggregateInputType = {
   id?: true
   tenantId?: true
-  name?: true
+  adminId?: true
+  title?: true
   type?: true
   address?: true
   gstin?: true
@@ -146,18 +160,20 @@ export type PropertyMaxAggregateInputType = {
   postal_code?: true
   contact_email?: true
   contact_phone?: true
+  latitude?: true
+  longitude?: true
+  description?: true
   starRating?: true
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
-  latitude?: true
-  longitude?: true
 }
 
 export type PropertyCountAggregateInputType = {
   id?: true
   tenantId?: true
-  name?: true
+  adminId?: true
+  title?: true
   type?: true
   address?: true
   gstin?: true
@@ -167,13 +183,15 @@ export type PropertyCountAggregateInputType = {
   postal_code?: true
   contact_email?: true
   contact_phone?: true
+  latitude?: true
+  longitude?: true
+  amenities?: true
+  description?: true
   starRating?: true
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
   images?: true
-  latitude?: true
-  longitude?: true
   _all?: true
 }
 
@@ -266,7 +284,8 @@ export type PropertyGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
 export type PropertyGroupByOutputType = {
   id: string
   tenantId: string
-  name: string
+  adminId: string
+  title: string
   type: string | null
   address: string
   gstin: string | null
@@ -276,13 +295,15 @@ export type PropertyGroupByOutputType = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating: string | null
+  latitude: number
+  longitude: number
+  amenities: runtime.JsonValue | null
+  description: string | null
+  starRating: number | null
   createdAt: Date
   updatedAt: Date
   deletedAt: Date | null
   images: string[]
-  latitude: number
-  longitude: number
   _count: PropertyCountAggregateOutputType | null
   _avg: PropertyAvgAggregateOutputType | null
   _sum: PropertySumAggregateOutputType | null
@@ -311,7 +332,8 @@ export type PropertyWhereInput = {
   NOT?: Prisma.PropertyWhereInput | Prisma.PropertyWhereInput[]
   id?: Prisma.StringFilter<"Property"> | string
   tenantId?: Prisma.StringFilter<"Property"> | string
-  name?: Prisma.StringFilter<"Property"> | string
+  adminId?: Prisma.StringFilter<"Property"> | string
+  title?: Prisma.StringFilter<"Property"> | string
   type?: Prisma.StringNullableFilter<"Property"> | string | null
   address?: Prisma.StringFilter<"Property"> | string
   gstin?: Prisma.StringNullableFilter<"Property"> | string | null
@@ -321,22 +343,27 @@ export type PropertyWhereInput = {
   postal_code?: Prisma.StringFilter<"Property"> | string
   contact_email?: Prisma.StringFilter<"Property"> | string
   contact_phone?: Prisma.StringFilter<"Property"> | string
-  starRating?: Prisma.StringNullableFilter<"Property"> | string | null
+  latitude?: Prisma.FloatFilter<"Property"> | number
+  longitude?: Prisma.FloatFilter<"Property"> | number
+  amenities?: Prisma.JsonNullableFilter<"Property">
+  description?: Prisma.StringNullableFilter<"Property"> | string | null
+  starRating?: Prisma.FloatNullableFilter<"Property"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Property"> | Date | string | null
   images?: Prisma.StringNullableListFilter<"Property">
-  latitude?: Prisma.FloatFilter<"Property"> | number
-  longitude?: Prisma.FloatFilter<"Property"> | number
-  booking?: Prisma.BookingListRelationFilter
+  bookings?: Prisma.BookingListRelationFilter
+  rooms?: Prisma.RoomListRelationFilter
+  roomTemplate?: Prisma.RoomTemplateListRelationFilter
   tenant?: Prisma.XOR<Prisma.TenantScalarRelationFilter, Prisma.TenantWhereInput>
-  rooms?: Prisma.XOR<Prisma.RoomNullableScalarRelationFilter, Prisma.RoomWhereInput> | null
+  admin?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
 
 export type PropertyOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   tenantId?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  adminId?: Prisma.SortOrder
+  title?: Prisma.SortOrder
   type?: Prisma.SortOrderInput | Prisma.SortOrder
   address?: Prisma.SortOrder
   gstin?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -346,16 +373,20 @@ export type PropertyOrderByWithRelationInput = {
   postal_code?: Prisma.SortOrder
   contact_email?: Prisma.SortOrder
   contact_phone?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+  amenities?: Prisma.SortOrderInput | Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   starRating?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   images?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
-  booking?: Prisma.BookingOrderByRelationAggregateInput
+  bookings?: Prisma.BookingOrderByRelationAggregateInput
+  rooms?: Prisma.RoomOrderByRelationAggregateInput
+  roomTemplate?: Prisma.RoomTemplateOrderByRelationAggregateInput
   tenant?: Prisma.TenantOrderByWithRelationInput
-  rooms?: Prisma.RoomOrderByWithRelationInput
+  admin?: Prisma.UserOrderByWithRelationInput
 }
 
 export type PropertyWhereUniqueInput = Prisma.AtLeast<{
@@ -364,7 +395,8 @@ export type PropertyWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.PropertyWhereInput[]
   NOT?: Prisma.PropertyWhereInput | Prisma.PropertyWhereInput[]
   tenantId?: Prisma.StringFilter<"Property"> | string
-  name?: Prisma.StringFilter<"Property"> | string
+  adminId?: Prisma.StringFilter<"Property"> | string
+  title?: Prisma.StringFilter<"Property"> | string
   type?: Prisma.StringNullableFilter<"Property"> | string | null
   address?: Prisma.StringFilter<"Property"> | string
   gstin?: Prisma.StringNullableFilter<"Property"> | string | null
@@ -374,22 +406,27 @@ export type PropertyWhereUniqueInput = Prisma.AtLeast<{
   postal_code?: Prisma.StringFilter<"Property"> | string
   contact_email?: Prisma.StringFilter<"Property"> | string
   contact_phone?: Prisma.StringFilter<"Property"> | string
-  starRating?: Prisma.StringNullableFilter<"Property"> | string | null
+  latitude?: Prisma.FloatFilter<"Property"> | number
+  longitude?: Prisma.FloatFilter<"Property"> | number
+  amenities?: Prisma.JsonNullableFilter<"Property">
+  description?: Prisma.StringNullableFilter<"Property"> | string | null
+  starRating?: Prisma.FloatNullableFilter<"Property"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Property"> | Date | string | null
   images?: Prisma.StringNullableListFilter<"Property">
-  latitude?: Prisma.FloatFilter<"Property"> | number
-  longitude?: Prisma.FloatFilter<"Property"> | number
-  booking?: Prisma.BookingListRelationFilter
+  bookings?: Prisma.BookingListRelationFilter
+  rooms?: Prisma.RoomListRelationFilter
+  roomTemplate?: Prisma.RoomTemplateListRelationFilter
   tenant?: Prisma.XOR<Prisma.TenantScalarRelationFilter, Prisma.TenantWhereInput>
-  rooms?: Prisma.XOR<Prisma.RoomNullableScalarRelationFilter, Prisma.RoomWhereInput> | null
+  admin?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "id">
 
 export type PropertyOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   tenantId?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  adminId?: Prisma.SortOrder
+  title?: Prisma.SortOrder
   type?: Prisma.SortOrderInput | Prisma.SortOrder
   address?: Prisma.SortOrder
   gstin?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -399,13 +436,15 @@ export type PropertyOrderByWithAggregationInput = {
   postal_code?: Prisma.SortOrder
   contact_email?: Prisma.SortOrder
   contact_phone?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+  amenities?: Prisma.SortOrderInput | Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   starRating?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   images?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
   _count?: Prisma.PropertyCountOrderByAggregateInput
   _avg?: Prisma.PropertyAvgOrderByAggregateInput
   _max?: Prisma.PropertyMaxOrderByAggregateInput
@@ -419,7 +458,8 @@ export type PropertyScalarWhereWithAggregatesInput = {
   NOT?: Prisma.PropertyScalarWhereWithAggregatesInput | Prisma.PropertyScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Property"> | string
   tenantId?: Prisma.StringWithAggregatesFilter<"Property"> | string
-  name?: Prisma.StringWithAggregatesFilter<"Property"> | string
+  adminId?: Prisma.StringWithAggregatesFilter<"Property"> | string
+  title?: Prisma.StringWithAggregatesFilter<"Property"> | string
   type?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
   address?: Prisma.StringWithAggregatesFilter<"Property"> | string
   gstin?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
@@ -429,18 +469,20 @@ export type PropertyScalarWhereWithAggregatesInput = {
   postal_code?: Prisma.StringWithAggregatesFilter<"Property"> | string
   contact_email?: Prisma.StringWithAggregatesFilter<"Property"> | string
   contact_phone?: Prisma.StringWithAggregatesFilter<"Property"> | string
-  starRating?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
+  latitude?: Prisma.FloatWithAggregatesFilter<"Property"> | number
+  longitude?: Prisma.FloatWithAggregatesFilter<"Property"> | number
+  amenities?: Prisma.JsonNullableWithAggregatesFilter<"Property">
+  description?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
+  starRating?: Prisma.FloatNullableWithAggregatesFilter<"Property"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Property"> | Date | string | null
   images?: Prisma.StringNullableListFilter<"Property">
-  latitude?: Prisma.FloatWithAggregatesFilter<"Property"> | number
-  longitude?: Prisma.FloatWithAggregatesFilter<"Property"> | number
 }
 
 export type PropertyCreateInput = {
   id?: string
-  name: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -450,22 +492,27 @@ export type PropertyCreateInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  booking?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  bookings?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateCreateNestedManyWithoutPropertyInput
   tenant: Prisma.TenantCreateNestedOneWithoutPropertiesInput
-  rooms?: Prisma.RoomCreateNestedOneWithoutPropertyInput
+  admin: Prisma.UserCreateNestedOneWithoutPropertiesInput
 }
 
 export type PropertyUncheckedCreateInput = {
   id?: string
   tenantId: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -475,20 +522,23 @@ export type PropertyUncheckedCreateInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  booking?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
-  rooms?: Prisma.RoomUncheckedCreateNestedOneWithoutPropertyInput
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedCreateNestedManyWithoutPropertyInput
 }
 
 export type PropertyUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -498,22 +548,27 @@ export type PropertyUpdateInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUpdateManyWithoutPropertyNestedInput
   tenant?: Prisma.TenantUpdateOneRequiredWithoutPropertiesNestedInput
-  rooms?: Prisma.RoomUpdateOneWithoutPropertyNestedInput
+  admin?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
 }
 
 export type PropertyUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -523,21 +578,25 @@ export type PropertyUncheckedUpdateInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
-  rooms?: Prisma.RoomUncheckedUpdateOneWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUncheckedUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedUpdateManyWithoutPropertyNestedInput
 }
 
 export type PropertyCreateManyInput = {
   id?: string
   tenantId: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -547,18 +606,20 @@ export type PropertyCreateManyInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
 }
 
 export type PropertyUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -568,19 +629,22 @@ export type PropertyUpdateManyMutationInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PropertyUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -590,13 +654,15 @@ export type PropertyUncheckedUpdateManyInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PropertyListRelationFilter = {
@@ -620,7 +686,8 @@ export type StringNullableListFilter<$PrismaModel = never> = {
 export type PropertyCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tenantId?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  adminId?: Prisma.SortOrder
+  title?: Prisma.SortOrder
   type?: Prisma.SortOrder
   address?: Prisma.SortOrder
   gstin?: Prisma.SortOrder
@@ -630,24 +697,28 @@ export type PropertyCountOrderByAggregateInput = {
   postal_code?: Prisma.SortOrder
   contact_email?: Prisma.SortOrder
   contact_phone?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+  amenities?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   starRating?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   images?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
 }
 
 export type PropertyAvgOrderByAggregateInput = {
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
+  starRating?: Prisma.SortOrder
 }
 
 export type PropertyMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tenantId?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  adminId?: Prisma.SortOrder
+  title?: Prisma.SortOrder
   type?: Prisma.SortOrder
   address?: Prisma.SortOrder
   gstin?: Prisma.SortOrder
@@ -657,18 +728,20 @@ export type PropertyMaxOrderByAggregateInput = {
   postal_code?: Prisma.SortOrder
   contact_email?: Prisma.SortOrder
   contact_phone?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   starRating?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
 }
 
 export type PropertyMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tenantId?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  adminId?: Prisma.SortOrder
+  title?: Prisma.SortOrder
   type?: Prisma.SortOrder
   address?: Prisma.SortOrder
   gstin?: Prisma.SortOrder
@@ -678,22 +751,66 @@ export type PropertyMinOrderByAggregateInput = {
   postal_code?: Prisma.SortOrder
   contact_email?: Prisma.SortOrder
   contact_phone?: Prisma.SortOrder
+  latitude?: Prisma.SortOrder
+  longitude?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   starRating?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
-  latitude?: Prisma.SortOrder
-  longitude?: Prisma.SortOrder
 }
 
 export type PropertySumOrderByAggregateInput = {
   latitude?: Prisma.SortOrder
   longitude?: Prisma.SortOrder
+  starRating?: Prisma.SortOrder
 }
 
 export type PropertyScalarRelationFilter = {
   is?: Prisma.PropertyWhereInput
   isNot?: Prisma.PropertyWhereInput
+}
+
+export type PropertyCreateNestedManyWithoutAdminInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput> | Prisma.PropertyCreateWithoutAdminInput[] | Prisma.PropertyUncheckedCreateWithoutAdminInput[]
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAdminInput | Prisma.PropertyCreateOrConnectWithoutAdminInput[]
+  createMany?: Prisma.PropertyCreateManyAdminInputEnvelope
+  connect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+}
+
+export type PropertyUncheckedCreateNestedManyWithoutAdminInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput> | Prisma.PropertyCreateWithoutAdminInput[] | Prisma.PropertyUncheckedCreateWithoutAdminInput[]
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAdminInput | Prisma.PropertyCreateOrConnectWithoutAdminInput[]
+  createMany?: Prisma.PropertyCreateManyAdminInputEnvelope
+  connect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+}
+
+export type PropertyUpdateManyWithoutAdminNestedInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput> | Prisma.PropertyCreateWithoutAdminInput[] | Prisma.PropertyUncheckedCreateWithoutAdminInput[]
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAdminInput | Prisma.PropertyCreateOrConnectWithoutAdminInput[]
+  upsert?: Prisma.PropertyUpsertWithWhereUniqueWithoutAdminInput | Prisma.PropertyUpsertWithWhereUniqueWithoutAdminInput[]
+  createMany?: Prisma.PropertyCreateManyAdminInputEnvelope
+  set?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  disconnect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  delete?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  connect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  update?: Prisma.PropertyUpdateWithWhereUniqueWithoutAdminInput | Prisma.PropertyUpdateWithWhereUniqueWithoutAdminInput[]
+  updateMany?: Prisma.PropertyUpdateManyWithWhereWithoutAdminInput | Prisma.PropertyUpdateManyWithWhereWithoutAdminInput[]
+  deleteMany?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
+}
+
+export type PropertyUncheckedUpdateManyWithoutAdminNestedInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput> | Prisma.PropertyCreateWithoutAdminInput[] | Prisma.PropertyUncheckedCreateWithoutAdminInput[]
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAdminInput | Prisma.PropertyCreateOrConnectWithoutAdminInput[]
+  upsert?: Prisma.PropertyUpsertWithWhereUniqueWithoutAdminInput | Prisma.PropertyUpsertWithWhereUniqueWithoutAdminInput[]
+  createMany?: Prisma.PropertyCreateManyAdminInputEnvelope
+  set?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  disconnect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  delete?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  connect?: Prisma.PropertyWhereUniqueInput | Prisma.PropertyWhereUniqueInput[]
+  update?: Prisma.PropertyUpdateWithWhereUniqueWithoutAdminInput | Prisma.PropertyUpdateWithWhereUniqueWithoutAdminInput[]
+  updateMany?: Prisma.PropertyUpdateManyWithWhereWithoutAdminInput | Prisma.PropertyUpdateManyWithWhereWithoutAdminInput[]
+  deleteMany?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
 }
 
 export type PropertyCreateNestedManyWithoutTenantInput = {
@@ -742,17 +859,39 @@ export type PropertyCreateimagesInput = {
   set: string[]
 }
 
-export type PropertyUpdateimagesInput = {
-  set?: string[]
-  push?: string | string[]
-}
-
 export type FloatFieldUpdateOperationsInput = {
   set?: number
   increment?: number
   decrement?: number
   multiply?: number
   divide?: number
+}
+
+export type NullableFloatFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type PropertyUpdateimagesInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
+export type PropertyCreateNestedOneWithoutRoomTemplateInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutRoomTemplateInput, Prisma.PropertyUncheckedCreateWithoutRoomTemplateInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutRoomTemplateInput
+  connect?: Prisma.PropertyWhereUniqueInput
+}
+
+export type PropertyUpdateOneRequiredWithoutRoomTemplateNestedInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutRoomTemplateInput, Prisma.PropertyUncheckedCreateWithoutRoomTemplateInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutRoomTemplateInput
+  upsert?: Prisma.PropertyUpsertWithoutRoomTemplateInput
+  connect?: Prisma.PropertyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutRoomTemplateInput, Prisma.PropertyUpdateWithoutRoomTemplateInput>, Prisma.PropertyUncheckedUpdateWithoutRoomTemplateInput>
 }
 
 export type PropertyCreateNestedOneWithoutRoomsInput = {
@@ -769,23 +908,131 @@ export type PropertyUpdateOneRequiredWithoutRoomsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutRoomsInput, Prisma.PropertyUpdateWithoutRoomsInput>, Prisma.PropertyUncheckedUpdateWithoutRoomsInput>
 }
 
-export type PropertyCreateNestedOneWithoutBookingInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutBookingInput, Prisma.PropertyUncheckedCreateWithoutBookingInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutBookingInput
+export type PropertyCreateNestedOneWithoutBookingsInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutBookingsInput, Prisma.PropertyUncheckedCreateWithoutBookingsInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutBookingsInput
   connect?: Prisma.PropertyWhereUniqueInput
 }
 
-export type PropertyUpdateOneRequiredWithoutBookingNestedInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutBookingInput, Prisma.PropertyUncheckedCreateWithoutBookingInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutBookingInput
-  upsert?: Prisma.PropertyUpsertWithoutBookingInput
+export type PropertyUpdateOneRequiredWithoutBookingsNestedInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutBookingsInput, Prisma.PropertyUncheckedCreateWithoutBookingsInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutBookingsInput
+  upsert?: Prisma.PropertyUpsertWithoutBookingsInput
   connect?: Prisma.PropertyWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutBookingInput, Prisma.PropertyUpdateWithoutBookingInput>, Prisma.PropertyUncheckedUpdateWithoutBookingInput>
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutBookingsInput, Prisma.PropertyUpdateWithoutBookingsInput>, Prisma.PropertyUncheckedUpdateWithoutBookingsInput>
+}
+
+export type PropertyCreateWithoutAdminInput = {
+  id?: string
+  title: string
+  type?: string | null
+  address: string
+  gstin?: string | null
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  contact_email: string
+  contact_phone: string
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  images?: Prisma.PropertyCreateimagesInput | string[]
+  bookings?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateCreateNestedManyWithoutPropertyInput
+  tenant: Prisma.TenantCreateNestedOneWithoutPropertiesInput
+}
+
+export type PropertyUncheckedCreateWithoutAdminInput = {
+  id?: string
+  tenantId: string
+  title: string
+  type?: string | null
+  address: string
+  gstin?: string | null
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  contact_email: string
+  contact_phone: string
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  images?: Prisma.PropertyCreateimagesInput | string[]
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedCreateNestedManyWithoutPropertyInput
+}
+
+export type PropertyCreateOrConnectWithoutAdminInput = {
+  where: Prisma.PropertyWhereUniqueInput
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput>
+}
+
+export type PropertyCreateManyAdminInputEnvelope = {
+  data: Prisma.PropertyCreateManyAdminInput | Prisma.PropertyCreateManyAdminInput[]
+  skipDuplicates?: boolean
+}
+
+export type PropertyUpsertWithWhereUniqueWithoutAdminInput = {
+  where: Prisma.PropertyWhereUniqueInput
+  update: Prisma.XOR<Prisma.PropertyUpdateWithoutAdminInput, Prisma.PropertyUncheckedUpdateWithoutAdminInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutAdminInput, Prisma.PropertyUncheckedCreateWithoutAdminInput>
+}
+
+export type PropertyUpdateWithWhereUniqueWithoutAdminInput = {
+  where: Prisma.PropertyWhereUniqueInput
+  data: Prisma.XOR<Prisma.PropertyUpdateWithoutAdminInput, Prisma.PropertyUncheckedUpdateWithoutAdminInput>
+}
+
+export type PropertyUpdateManyWithWhereWithoutAdminInput = {
+  where: Prisma.PropertyScalarWhereInput
+  data: Prisma.XOR<Prisma.PropertyUpdateManyMutationInput, Prisma.PropertyUncheckedUpdateManyWithoutAdminInput>
+}
+
+export type PropertyScalarWhereInput = {
+  AND?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
+  OR?: Prisma.PropertyScalarWhereInput[]
+  NOT?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
+  id?: Prisma.StringFilter<"Property"> | string
+  tenantId?: Prisma.StringFilter<"Property"> | string
+  adminId?: Prisma.StringFilter<"Property"> | string
+  title?: Prisma.StringFilter<"Property"> | string
+  type?: Prisma.StringNullableFilter<"Property"> | string | null
+  address?: Prisma.StringFilter<"Property"> | string
+  gstin?: Prisma.StringNullableFilter<"Property"> | string | null
+  city?: Prisma.StringFilter<"Property"> | string
+  state?: Prisma.StringFilter<"Property"> | string
+  country?: Prisma.StringFilter<"Property"> | string
+  postal_code?: Prisma.StringFilter<"Property"> | string
+  contact_email?: Prisma.StringFilter<"Property"> | string
+  contact_phone?: Prisma.StringFilter<"Property"> | string
+  latitude?: Prisma.FloatFilter<"Property"> | number
+  longitude?: Prisma.FloatFilter<"Property"> | number
+  amenities?: Prisma.JsonNullableFilter<"Property">
+  description?: Prisma.StringNullableFilter<"Property"> | string | null
+  starRating?: Prisma.FloatNullableFilter<"Property"> | number | null
+  createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableFilter<"Property"> | Date | string | null
+  images?: Prisma.StringNullableListFilter<"Property">
 }
 
 export type PropertyCreateWithoutTenantInput = {
   id?: string
-  name: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -795,20 +1042,25 @@ export type PropertyCreateWithoutTenantInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  booking?: Prisma.BookingCreateNestedManyWithoutPropertyInput
-  rooms?: Prisma.RoomCreateNestedOneWithoutPropertyInput
+  bookings?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateCreateNestedManyWithoutPropertyInput
+  admin: Prisma.UserCreateNestedOneWithoutPropertiesInput
 }
 
 export type PropertyUncheckedCreateWithoutTenantInput = {
   id?: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -818,15 +1070,18 @@ export type PropertyUncheckedCreateWithoutTenantInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  booking?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
-  rooms?: Prisma.RoomUncheckedCreateNestedOneWithoutPropertyInput
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedCreateNestedManyWithoutPropertyInput
 }
 
 export type PropertyCreateOrConnectWithoutTenantInput = {
@@ -855,34 +1110,9 @@ export type PropertyUpdateManyWithWhereWithoutTenantInput = {
   data: Prisma.XOR<Prisma.PropertyUpdateManyMutationInput, Prisma.PropertyUncheckedUpdateManyWithoutTenantInput>
 }
 
-export type PropertyScalarWhereInput = {
-  AND?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
-  OR?: Prisma.PropertyScalarWhereInput[]
-  NOT?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
-  id?: Prisma.StringFilter<"Property"> | string
-  tenantId?: Prisma.StringFilter<"Property"> | string
-  name?: Prisma.StringFilter<"Property"> | string
-  type?: Prisma.StringNullableFilter<"Property"> | string | null
-  address?: Prisma.StringFilter<"Property"> | string
-  gstin?: Prisma.StringNullableFilter<"Property"> | string | null
-  city?: Prisma.StringFilter<"Property"> | string
-  state?: Prisma.StringFilter<"Property"> | string
-  country?: Prisma.StringFilter<"Property"> | string
-  postal_code?: Prisma.StringFilter<"Property"> | string
-  contact_email?: Prisma.StringFilter<"Property"> | string
-  contact_phone?: Prisma.StringFilter<"Property"> | string
-  starRating?: Prisma.StringNullableFilter<"Property"> | string | null
-  createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
-  deletedAt?: Prisma.DateTimeNullableFilter<"Property"> | Date | string | null
-  images?: Prisma.StringNullableListFilter<"Property">
-  latitude?: Prisma.FloatFilter<"Property"> | number
-  longitude?: Prisma.FloatFilter<"Property"> | number
-}
-
-export type PropertyCreateWithoutRoomsInput = {
+export type PropertyCreateWithoutRoomTemplateInput = {
   id?: string
-  name: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -892,21 +1122,150 @@ export type PropertyCreateWithoutRoomsInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
+  bookings?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomCreateNestedManyWithoutPropertyInput
+  tenant: Prisma.TenantCreateNestedOneWithoutPropertiesInput
+  admin: Prisma.UserCreateNestedOneWithoutPropertiesInput
+}
+
+export type PropertyUncheckedCreateWithoutRoomTemplateInput = {
+  id?: string
+  tenantId: string
+  adminId: string
+  title: string
+  type?: string | null
+  address: string
+  gstin?: string | null
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  contact_email: string
+  contact_phone: string
   latitude: number
   longitude: number
-  booking?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  images?: Prisma.PropertyCreateimagesInput | string[]
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutPropertyInput
+}
+
+export type PropertyCreateOrConnectWithoutRoomTemplateInput = {
+  where: Prisma.PropertyWhereUniqueInput
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutRoomTemplateInput, Prisma.PropertyUncheckedCreateWithoutRoomTemplateInput>
+}
+
+export type PropertyUpsertWithoutRoomTemplateInput = {
+  update: Prisma.XOR<Prisma.PropertyUpdateWithoutRoomTemplateInput, Prisma.PropertyUncheckedUpdateWithoutRoomTemplateInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutRoomTemplateInput, Prisma.PropertyUncheckedCreateWithoutRoomTemplateInput>
+  where?: Prisma.PropertyWhereInput
+}
+
+export type PropertyUpdateToOneWithWhereWithoutRoomTemplateInput = {
+  where?: Prisma.PropertyWhereInput
+  data: Prisma.XOR<Prisma.PropertyUpdateWithoutRoomTemplateInput, Prisma.PropertyUncheckedUpdateWithoutRoomTemplateInput>
+}
+
+export type PropertyUpdateWithoutRoomTemplateInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.StringFieldUpdateOperationsInput | string
+  gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.StringFieldUpdateOperationsInput | string
+  country?: Prisma.StringFieldUpdateOperationsInput | string
+  postal_code?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_email?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  images?: Prisma.PropertyUpdateimagesInput | string[]
+  bookings?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUpdateManyWithoutPropertyNestedInput
+  tenant?: Prisma.TenantUpdateOneRequiredWithoutPropertiesNestedInput
+  admin?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
+}
+
+export type PropertyUncheckedUpdateWithoutRoomTemplateInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.StringFieldUpdateOperationsInput | string
+  gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.StringFieldUpdateOperationsInput | string
+  country?: Prisma.StringFieldUpdateOperationsInput | string
+  postal_code?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_email?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  images?: Prisma.PropertyUpdateimagesInput | string[]
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUncheckedUpdateManyWithoutPropertyNestedInput
+}
+
+export type PropertyCreateWithoutRoomsInput = {
+  id?: string
+  title: string
+  type?: string | null
+  address: string
+  gstin?: string | null
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  contact_email: string
+  contact_phone: string
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  images?: Prisma.PropertyCreateimagesInput | string[]
+  bookings?: Prisma.BookingCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateCreateNestedManyWithoutPropertyInput
   tenant: Prisma.TenantCreateNestedOneWithoutPropertiesInput
+  admin: Prisma.UserCreateNestedOneWithoutPropertiesInput
 }
 
 export type PropertyUncheckedCreateWithoutRoomsInput = {
   id?: string
   tenantId: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -916,14 +1275,17 @@ export type PropertyUncheckedCreateWithoutRoomsInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  booking?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedCreateNestedManyWithoutPropertyInput
 }
 
 export type PropertyCreateOrConnectWithoutRoomsInput = {
@@ -944,7 +1306,7 @@ export type PropertyUpdateToOneWithWhereWithoutRoomsInput = {
 
 export type PropertyUpdateWithoutRoomsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -954,21 +1316,26 @@ export type PropertyUpdateWithoutRoomsInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUpdateManyWithoutPropertyNestedInput
   tenant?: Prisma.TenantUpdateOneRequiredWithoutPropertiesNestedInput
+  admin?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
 }
 
 export type PropertyUncheckedUpdateWithoutRoomsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -978,19 +1345,22 @@ export type PropertyUncheckedUpdateWithoutRoomsInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedUpdateManyWithoutPropertyNestedInput
 }
 
-export type PropertyCreateWithoutBookingInput = {
+export type PropertyCreateWithoutBookingsInput = {
   id?: string
-  name: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -1000,21 +1370,26 @@ export type PropertyCreateWithoutBookingInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
+  rooms?: Prisma.RoomCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateCreateNestedManyWithoutPropertyInput
   tenant: Prisma.TenantCreateNestedOneWithoutPropertiesInput
-  rooms?: Prisma.RoomCreateNestedOneWithoutPropertyInput
+  admin: Prisma.UserCreateNestedOneWithoutPropertiesInput
 }
 
-export type PropertyUncheckedCreateWithoutBookingInput = {
+export type PropertyUncheckedCreateWithoutBookingsInput = {
   id?: string
   tenantId: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -1024,35 +1399,38 @@ export type PropertyUncheckedCreateWithoutBookingInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
-  rooms?: Prisma.RoomUncheckedCreateNestedOneWithoutPropertyInput
+  rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutPropertyInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedCreateNestedManyWithoutPropertyInput
 }
 
-export type PropertyCreateOrConnectWithoutBookingInput = {
+export type PropertyCreateOrConnectWithoutBookingsInput = {
   where: Prisma.PropertyWhereUniqueInput
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutBookingInput, Prisma.PropertyUncheckedCreateWithoutBookingInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutBookingsInput, Prisma.PropertyUncheckedCreateWithoutBookingsInput>
 }
 
-export type PropertyUpsertWithoutBookingInput = {
-  update: Prisma.XOR<Prisma.PropertyUpdateWithoutBookingInput, Prisma.PropertyUncheckedUpdateWithoutBookingInput>
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutBookingInput, Prisma.PropertyUncheckedCreateWithoutBookingInput>
+export type PropertyUpsertWithoutBookingsInput = {
+  update: Prisma.XOR<Prisma.PropertyUpdateWithoutBookingsInput, Prisma.PropertyUncheckedUpdateWithoutBookingsInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutBookingsInput, Prisma.PropertyUncheckedCreateWithoutBookingsInput>
   where?: Prisma.PropertyWhereInput
 }
 
-export type PropertyUpdateToOneWithWhereWithoutBookingInput = {
+export type PropertyUpdateToOneWithWhereWithoutBookingsInput = {
   where?: Prisma.PropertyWhereInput
-  data: Prisma.XOR<Prisma.PropertyUpdateWithoutBookingInput, Prisma.PropertyUncheckedUpdateWithoutBookingInput>
+  data: Prisma.XOR<Prisma.PropertyUpdateWithoutBookingsInput, Prisma.PropertyUncheckedUpdateWithoutBookingsInput>
 }
 
-export type PropertyUpdateWithoutBookingInput = {
+export type PropertyUpdateWithoutBookingsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1062,21 +1440,26 @@ export type PropertyUpdateWithoutBookingInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  rooms?: Prisma.RoomUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUpdateManyWithoutPropertyNestedInput
   tenant?: Prisma.TenantUpdateOneRequiredWithoutPropertiesNestedInput
-  rooms?: Prisma.RoomUpdateOneWithoutPropertyNestedInput
+  admin?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
 }
 
-export type PropertyUncheckedUpdateWithoutBookingInput = {
+export type PropertyUncheckedUpdateWithoutBookingsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1086,19 +1469,125 @@ export type PropertyUncheckedUpdateWithoutBookingInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
+  rooms?: Prisma.RoomUncheckedUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedUpdateManyWithoutPropertyNestedInput
+}
+
+export type PropertyCreateManyAdminInput = {
+  id?: string
+  tenantId: string
+  title: string
+  type?: string | null
+  address: string
+  gstin?: string | null
+  city: string
+  state: string
+  country: string
+  postal_code: string
+  contact_email: string
+  contact_phone: string
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  images?: Prisma.PropertyCreateimagesInput | string[]
+}
+
+export type PropertyUpdateWithoutAdminInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.StringFieldUpdateOperationsInput | string
+  gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.StringFieldUpdateOperationsInput | string
+  country?: Prisma.StringFieldUpdateOperationsInput | string
+  postal_code?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_email?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
   latitude?: Prisma.FloatFieldUpdateOperationsInput | number
   longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  rooms?: Prisma.RoomUncheckedUpdateOneWithoutPropertyNestedInput
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  images?: Prisma.PropertyUpdateimagesInput | string[]
+  bookings?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUpdateManyWithoutPropertyNestedInput
+  tenant?: Prisma.TenantUpdateOneRequiredWithoutPropertiesNestedInput
+}
+
+export type PropertyUncheckedUpdateWithoutAdminInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.StringFieldUpdateOperationsInput | string
+  gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.StringFieldUpdateOperationsInput | string
+  country?: Prisma.StringFieldUpdateOperationsInput | string
+  postal_code?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_email?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  images?: Prisma.PropertyUpdateimagesInput | string[]
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUncheckedUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedUpdateManyWithoutPropertyNestedInput
+}
+
+export type PropertyUncheckedUpdateManyWithoutAdminInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.StringFieldUpdateOperationsInput | string
+  gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.StringFieldUpdateOperationsInput | string
+  country?: Prisma.StringFieldUpdateOperationsInput | string
+  postal_code?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_email?: Prisma.StringFieldUpdateOperationsInput | string
+  contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  images?: Prisma.PropertyUpdateimagesInput | string[]
 }
 
 export type PropertyCreateManyTenantInput = {
   id?: string
-  name: string
+  adminId: string
+  title: string
   type?: string | null
   address: string
   gstin?: string | null
@@ -1108,18 +1597,20 @@ export type PropertyCreateManyTenantInput = {
   postal_code: string
   contact_email: string
   contact_phone: string
-  starRating?: string | null
+  latitude: number
+  longitude: number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: string | null
+  starRating?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   images?: Prisma.PropertyCreateimagesInput | string[]
-  latitude: number
-  longitude: number
 }
 
 export type PropertyUpdateWithoutTenantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1129,20 +1620,25 @@ export type PropertyUpdateWithoutTenantInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
-  rooms?: Prisma.RoomUpdateOneWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUpdateManyWithoutPropertyNestedInput
+  admin?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
 }
 
 export type PropertyUncheckedUpdateWithoutTenantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1152,20 +1648,24 @@ export type PropertyUncheckedUpdateWithoutTenantInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  booking?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
-  rooms?: Prisma.RoomUncheckedUpdateOneWithoutPropertyNestedInput
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutPropertyNestedInput
+  rooms?: Prisma.RoomUncheckedUpdateManyWithoutPropertyNestedInput
+  roomTemplate?: Prisma.RoomTemplateUncheckedUpdateManyWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateManyWithoutTenantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  adminId?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.StringFieldUpdateOperationsInput | string
   gstin?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1175,13 +1675,15 @@ export type PropertyUncheckedUpdateManyWithoutTenantInput = {
   postal_code?: Prisma.StringFieldUpdateOperationsInput | string
   contact_email?: Prisma.StringFieldUpdateOperationsInput | string
   contact_phone?: Prisma.StringFieldUpdateOperationsInput | string
-  starRating?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
+  amenities?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  starRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   images?: Prisma.PropertyUpdateimagesInput | string[]
-  latitude?: Prisma.FloatFieldUpdateOperationsInput | number
-  longitude?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 
@@ -1190,11 +1692,15 @@ export type PropertyUncheckedUpdateManyWithoutTenantInput = {
  */
 
 export type PropertyCountOutputType = {
-  booking: number
+  bookings: number
+  rooms: number
+  roomTemplate: number
 }
 
 export type PropertyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  booking?: boolean | PropertyCountOutputTypeCountBookingArgs
+  bookings?: boolean | PropertyCountOutputTypeCountBookingsArgs
+  rooms?: boolean | PropertyCountOutputTypeCountRoomsArgs
+  roomTemplate?: boolean | PropertyCountOutputTypeCountRoomTemplateArgs
 }
 
 /**
@@ -1210,15 +1716,30 @@ export type PropertyCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Ext
 /**
  * PropertyCountOutputType without action
  */
-export type PropertyCountOutputTypeCountBookingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type PropertyCountOutputTypeCountBookingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.BookingWhereInput
+}
+
+/**
+ * PropertyCountOutputType without action
+ */
+export type PropertyCountOutputTypeCountRoomsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RoomWhereInput
+}
+
+/**
+ * PropertyCountOutputType without action
+ */
+export type PropertyCountOutputTypeCountRoomTemplateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RoomTemplateWhereInput
 }
 
 
 export type PropertySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   tenantId?: boolean
-  name?: boolean
+  adminId?: boolean
+  title?: boolean
   type?: boolean
   address?: boolean
   gstin?: boolean
@@ -1228,23 +1749,28 @@ export type PropertySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   postal_code?: boolean
   contact_email?: boolean
   contact_phone?: boolean
+  latitude?: boolean
+  longitude?: boolean
+  amenities?: boolean
+  description?: boolean
   starRating?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
   images?: boolean
-  latitude?: boolean
-  longitude?: boolean
-  booking?: boolean | Prisma.Property$bookingArgs<ExtArgs>
-  tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  bookings?: boolean | Prisma.Property$bookingsArgs<ExtArgs>
   rooms?: boolean | Prisma.Property$roomsArgs<ExtArgs>
+  roomTemplate?: boolean | Prisma.Property$roomTemplateArgs<ExtArgs>
+  tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.PropertyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["property"]>
 
 export type PropertySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   tenantId?: boolean
-  name?: boolean
+  adminId?: boolean
+  title?: boolean
   type?: boolean
   address?: boolean
   gstin?: boolean
@@ -1254,20 +1780,24 @@ export type PropertySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   postal_code?: boolean
   contact_email?: boolean
   contact_phone?: boolean
+  latitude?: boolean
+  longitude?: boolean
+  amenities?: boolean
+  description?: boolean
   starRating?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
   images?: boolean
-  latitude?: boolean
-  longitude?: boolean
   tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["property"]>
 
 export type PropertySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   tenantId?: boolean
-  name?: boolean
+  adminId?: boolean
+  title?: boolean
   type?: boolean
   address?: boolean
   gstin?: boolean
@@ -1277,20 +1807,24 @@ export type PropertySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   postal_code?: boolean
   contact_email?: boolean
   contact_phone?: boolean
+  latitude?: boolean
+  longitude?: boolean
+  amenities?: boolean
+  description?: boolean
   starRating?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
   images?: boolean
-  latitude?: boolean
-  longitude?: boolean
   tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["property"]>
 
 export type PropertySelectScalar = {
   id?: boolean
   tenantId?: boolean
-  name?: boolean
+  adminId?: boolean
+  title?: boolean
   type?: boolean
   address?: boolean
   gstin?: boolean
@@ -1300,40 +1834,49 @@ export type PropertySelectScalar = {
   postal_code?: boolean
   contact_email?: boolean
   contact_phone?: boolean
+  latitude?: boolean
+  longitude?: boolean
+  amenities?: boolean
+  description?: boolean
   starRating?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
   images?: boolean
-  latitude?: boolean
-  longitude?: boolean
 }
 
-export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tenantId" | "name" | "type" | "address" | "gstin" | "city" | "state" | "country" | "postal_code" | "contact_email" | "contact_phone" | "starRating" | "createdAt" | "updatedAt" | "deletedAt" | "images" | "latitude" | "longitude", ExtArgs["result"]["property"]>
+export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tenantId" | "adminId" | "title" | "type" | "address" | "gstin" | "city" | "state" | "country" | "postal_code" | "contact_email" | "contact_phone" | "latitude" | "longitude" | "amenities" | "description" | "starRating" | "createdAt" | "updatedAt" | "deletedAt" | "images", ExtArgs["result"]["property"]>
 export type PropertyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  booking?: boolean | Prisma.Property$bookingArgs<ExtArgs>
-  tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  bookings?: boolean | Prisma.Property$bookingsArgs<ExtArgs>
   rooms?: boolean | Prisma.Property$roomsArgs<ExtArgs>
+  roomTemplate?: boolean | Prisma.Property$roomTemplateArgs<ExtArgs>
+  tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.PropertyCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PropertyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 export type PropertyIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   tenant?: boolean | Prisma.TenantDefaultArgs<ExtArgs>
+  admin?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 
 export type $PropertyPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Property"
   objects: {
-    booking: Prisma.$BookingPayload<ExtArgs>[]
+    bookings: Prisma.$BookingPayload<ExtArgs>[]
+    rooms: Prisma.$RoomPayload<ExtArgs>[]
+    roomTemplate: Prisma.$RoomTemplatePayload<ExtArgs>[]
     tenant: Prisma.$TenantPayload<ExtArgs>
-    rooms: Prisma.$RoomPayload<ExtArgs> | null
+    admin: Prisma.$UserPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     tenantId: string
-    name: string
+    adminId: string
+    title: string
     type: string | null
     address: string
     gstin: string | null
@@ -1343,13 +1886,15 @@ export type $PropertyPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     postal_code: string
     contact_email: string
     contact_phone: string
-    starRating: string | null
+    latitude: number
+    longitude: number
+    amenities: runtime.JsonValue | null
+    description: string | null
+    starRating: number | null
     createdAt: Date
     updatedAt: Date
     deletedAt: Date | null
     images: string[]
-    latitude: number
-    longitude: number
   }, ExtArgs["result"]["property"]>
   composites: {}
 }
@@ -1744,9 +2289,11 @@ readonly fields: PropertyFieldRefs;
  */
 export interface Prisma__PropertyClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  booking<T extends Prisma.Property$bookingArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$bookingArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  bookings<T extends Prisma.Property$bookingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$bookingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  rooms<T extends Prisma.Property$roomsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$roomsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RoomPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  roomTemplate<T extends Prisma.Property$roomTemplateArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$roomTemplateArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RoomTemplatePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tenant<T extends Prisma.TenantDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TenantDefaultArgs<ExtArgs>>): Prisma.Prisma__TenantClient<runtime.Types.Result.GetResult<Prisma.$TenantPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  rooms<T extends Prisma.Property$roomsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$roomsArgs<ExtArgs>>): Prisma.Prisma__RoomClient<runtime.Types.Result.GetResult<Prisma.$RoomPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  admin<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1778,7 +2325,8 @@ export interface Prisma__PropertyClient<T, Null = never, ExtArgs extends runtime
 export interface PropertyFieldRefs {
   readonly id: Prisma.FieldRef<"Property", 'String'>
   readonly tenantId: Prisma.FieldRef<"Property", 'String'>
-  readonly name: Prisma.FieldRef<"Property", 'String'>
+  readonly adminId: Prisma.FieldRef<"Property", 'String'>
+  readonly title: Prisma.FieldRef<"Property", 'String'>
   readonly type: Prisma.FieldRef<"Property", 'String'>
   readonly address: Prisma.FieldRef<"Property", 'String'>
   readonly gstin: Prisma.FieldRef<"Property", 'String'>
@@ -1788,13 +2336,15 @@ export interface PropertyFieldRefs {
   readonly postal_code: Prisma.FieldRef<"Property", 'String'>
   readonly contact_email: Prisma.FieldRef<"Property", 'String'>
   readonly contact_phone: Prisma.FieldRef<"Property", 'String'>
-  readonly starRating: Prisma.FieldRef<"Property", 'String'>
+  readonly latitude: Prisma.FieldRef<"Property", 'Float'>
+  readonly longitude: Prisma.FieldRef<"Property", 'Float'>
+  readonly amenities: Prisma.FieldRef<"Property", 'Json'>
+  readonly description: Prisma.FieldRef<"Property", 'String'>
+  readonly starRating: Prisma.FieldRef<"Property", 'Float'>
   readonly createdAt: Prisma.FieldRef<"Property", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Property", 'DateTime'>
   readonly deletedAt: Prisma.FieldRef<"Property", 'DateTime'>
   readonly images: Prisma.FieldRef<"Property", 'String[]'>
-  readonly latitude: Prisma.FieldRef<"Property", 'Float'>
-  readonly longitude: Prisma.FieldRef<"Property", 'Float'>
 }
     
 
@@ -2191,9 +2741,9 @@ export type PropertyDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
 }
 
 /**
- * Property.booking
+ * Property.bookings
  */
-export type Property$bookingArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type Property$bookingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
    * Select specific fields to fetch from the Booking
    */
@@ -2231,6 +2781,35 @@ export type Property$roomsArgs<ExtArgs extends runtime.Types.Extensions.Internal
    */
   include?: Prisma.RoomInclude<ExtArgs> | null
   where?: Prisma.RoomWhereInput
+  orderBy?: Prisma.RoomOrderByWithRelationInput | Prisma.RoomOrderByWithRelationInput[]
+  cursor?: Prisma.RoomWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RoomScalarFieldEnum | Prisma.RoomScalarFieldEnum[]
+}
+
+/**
+ * Property.roomTemplate
+ */
+export type Property$roomTemplateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RoomTemplate
+   */
+  select?: Prisma.RoomTemplateSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RoomTemplate
+   */
+  omit?: Prisma.RoomTemplateOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RoomTemplateInclude<ExtArgs> | null
+  where?: Prisma.RoomTemplateWhereInput
+  orderBy?: Prisma.RoomTemplateOrderByWithRelationInput | Prisma.RoomTemplateOrderByWithRelationInput[]
+  cursor?: Prisma.RoomTemplateWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RoomTemplateScalarFieldEnum | Prisma.RoomTemplateScalarFieldEnum[]
 }
 
 /**

@@ -33,15 +33,20 @@ export type Tenant = Prisma.TenantModel
  */
 export type Property = Prisma.PropertyModel
 /**
+ * Model RoomTemplate
+ * 
+ */
+export type RoomTemplate = Prisma.RoomTemplateModel
+/**
  * Model Room
  * 
  */
 export type Room = Prisma.RoomModel
 /**
- * Model RoomType
+ * Model Bed
  * 
  */
-export type RoomType = Prisma.RoomTypeModel
+export type Bed = Prisma.BedModel
 /**
  * Model Booking
  * 
