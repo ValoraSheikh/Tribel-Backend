@@ -22,6 +22,7 @@ model User {
   bookings   Booking[]
   properties Property[]
   tenant     Tenant?
+  beds       Bed[]
 }
 
 model Tenant {
@@ -88,6 +89,7 @@ model RoomTemplate {
   image         String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
   rooms         Room[]
   property      Property @relation(fields: [propertyId], references: [id])
 
@@ -105,24 +107,28 @@ model Room {
   pricePerBed    Int
   roomTemplateId String
   title          String
+  batchId        String?
   beds           Bed[]
   bookings       Booking[]
   property       Property     @relation(fields: [propertyId], references: [id])
   roomTemplate   RoomTemplate @relation(fields: [roomTemplateId], references: [id])
 
-  @@index([roomTemplateId])
+  @@index([roomTemplateId, batchId])
   @@index([propertyId])
+  @@index([batchId])
 }
 
 model Bed {
   id        String    @id @default(uuid())
   roomId    String
+  userId    String?
   bedNo     Int
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
   room      Room      @relation(fields: [roomId], references: [id])
   bookings  Booking[]
+  user      User? @relation(fields: [userId], references: [id])
 
   @@index([roomId])
 }
