@@ -50,6 +50,7 @@ export type RoomTemplateMinAggregateOutputType = {
   image: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  deletedAt: Date | null
 }
 
 export type RoomTemplateMaxAggregateOutputType = {
@@ -64,6 +65,7 @@ export type RoomTemplateMaxAggregateOutputType = {
   image: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  deletedAt: Date | null
 }
 
 export type RoomTemplateCountAggregateOutputType = {
@@ -79,6 +81,7 @@ export type RoomTemplateCountAggregateOutputType = {
   image: number
   createdAt: number
   updatedAt: number
+  deletedAt: number
   _all: number
 }
 
@@ -107,6 +110,7 @@ export type RoomTemplateMinAggregateInputType = {
   image?: true
   createdAt?: true
   updatedAt?: true
+  deletedAt?: true
 }
 
 export type RoomTemplateMaxAggregateInputType = {
@@ -121,6 +125,7 @@ export type RoomTemplateMaxAggregateInputType = {
   image?: true
   createdAt?: true
   updatedAt?: true
+  deletedAt?: true
 }
 
 export type RoomTemplateCountAggregateInputType = {
@@ -136,6 +141,7 @@ export type RoomTemplateCountAggregateInputType = {
   image?: true
   createdAt?: true
   updatedAt?: true
+  deletedAt?: true
   _all?: true
 }
 
@@ -238,6 +244,7 @@ export type RoomTemplateGroupByOutputType = {
   image: string
   createdAt: Date
   updatedAt: Date
+  deletedAt: Date | null
   _count: RoomTemplateCountAggregateOutputType | null
   _avg: RoomTemplateAvgAggregateOutputType | null
   _sum: RoomTemplateSumAggregateOutputType | null
@@ -276,6 +283,7 @@ export type RoomTemplateWhereInput = {
   image?: Prisma.StringFilter<"RoomTemplate"> | string
   createdAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableFilter<"RoomTemplate"> | Date | string | null
   rooms?: Prisma.RoomListRelationFilter
   property?: Prisma.XOR<Prisma.PropertyScalarRelationFilter, Prisma.PropertyWhereInput>
 }
@@ -293,6 +301,7 @@ export type RoomTemplateOrderByWithRelationInput = {
   image?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   rooms?: Prisma.RoomOrderByRelationAggregateInput
   property?: Prisma.PropertyOrderByWithRelationInput
 }
@@ -313,6 +322,7 @@ export type RoomTemplateWhereUniqueInput = Prisma.AtLeast<{
   image?: Prisma.StringFilter<"RoomTemplate"> | string
   createdAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableFilter<"RoomTemplate"> | Date | string | null
   rooms?: Prisma.RoomListRelationFilter
   property?: Prisma.XOR<Prisma.PropertyScalarRelationFilter, Prisma.PropertyWhereInput>
 }, "id">
@@ -330,6 +340,7 @@ export type RoomTemplateOrderByWithAggregationInput = {
   image?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.RoomTemplateCountOrderByAggregateInput
   _avg?: Prisma.RoomTemplateAvgOrderByAggregateInput
   _max?: Prisma.RoomTemplateMaxOrderByAggregateInput
@@ -353,6 +364,7 @@ export type RoomTemplateScalarWhereWithAggregatesInput = {
   image?: Prisma.StringWithAggregatesFilter<"RoomTemplate"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"RoomTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"RoomTemplate"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"RoomTemplate"> | Date | string | null
 }
 
 export type RoomTemplateCreateInput = {
@@ -367,6 +379,7 @@ export type RoomTemplateCreateInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
   rooms?: Prisma.RoomCreateNestedManyWithoutRoomTemplateInput
   property: Prisma.PropertyCreateNestedOneWithoutRoomTemplateInput
 }
@@ -384,6 +397,7 @@ export type RoomTemplateUncheckedCreateInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
   rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutRoomTemplateInput
 }
 
@@ -399,6 +413,7 @@ export type RoomTemplateUpdateInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   rooms?: Prisma.RoomUpdateManyWithoutRoomTemplateNestedInput
   property?: Prisma.PropertyUpdateOneRequiredWithoutRoomTemplateNestedInput
 }
@@ -416,6 +431,7 @@ export type RoomTemplateUncheckedUpdateInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   rooms?: Prisma.RoomUncheckedUpdateManyWithoutRoomTemplateNestedInput
 }
 
@@ -432,6 +448,7 @@ export type RoomTemplateCreateManyInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
 }
 
 export type RoomTemplateUpdateManyMutationInput = {
@@ -446,6 +463,7 @@ export type RoomTemplateUpdateManyMutationInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type RoomTemplateUncheckedUpdateManyInput = {
@@ -461,6 +479,7 @@ export type RoomTemplateUncheckedUpdateManyInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type RoomTemplateListRelationFilter = {
@@ -486,6 +505,7 @@ export type RoomTemplateCountOrderByAggregateInput = {
   image?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  deletedAt?: Prisma.SortOrder
 }
 
 export type RoomTemplateAvgOrderByAggregateInput = {
@@ -506,6 +526,7 @@ export type RoomTemplateMaxOrderByAggregateInput = {
   image?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  deletedAt?: Prisma.SortOrder
 }
 
 export type RoomTemplateMinOrderByAggregateInput = {
@@ -520,6 +541,7 @@ export type RoomTemplateMinOrderByAggregateInput = {
   image?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  deletedAt?: Prisma.SortOrder
 }
 
 export type RoomTemplateSumOrderByAggregateInput = {
@@ -609,6 +631,7 @@ export type RoomTemplateCreateWithoutPropertyInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
   rooms?: Prisma.RoomCreateNestedManyWithoutRoomTemplateInput
 }
 
@@ -624,6 +647,7 @@ export type RoomTemplateUncheckedCreateWithoutPropertyInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
   rooms?: Prisma.RoomUncheckedCreateNestedManyWithoutRoomTemplateInput
 }
 
@@ -669,6 +693,7 @@ export type RoomTemplateScalarWhereInput = {
   image?: Prisma.StringFilter<"RoomTemplate"> | string
   createdAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"RoomTemplate"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableFilter<"RoomTemplate"> | Date | string | null
 }
 
 export type RoomTemplateCreateWithoutRoomsInput = {
@@ -683,6 +708,7 @@ export type RoomTemplateCreateWithoutRoomsInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
   property: Prisma.PropertyCreateNestedOneWithoutRoomTemplateInput
 }
 
@@ -699,6 +725,7 @@ export type RoomTemplateUncheckedCreateWithoutRoomsInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
 }
 
 export type RoomTemplateCreateOrConnectWithoutRoomsInput = {
@@ -729,6 +756,7 @@ export type RoomTemplateUpdateWithoutRoomsInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   property?: Prisma.PropertyUpdateOneRequiredWithoutRoomTemplateNestedInput
 }
 
@@ -745,6 +773,7 @@ export type RoomTemplateUncheckedUpdateWithoutRoomsInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type RoomTemplateCreateManyPropertyInput = {
@@ -759,6 +788,7 @@ export type RoomTemplateCreateManyPropertyInput = {
   image: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  deletedAt?: Date | string | null
 }
 
 export type RoomTemplateUpdateWithoutPropertyInput = {
@@ -773,6 +803,7 @@ export type RoomTemplateUpdateWithoutPropertyInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   rooms?: Prisma.RoomUpdateManyWithoutRoomTemplateNestedInput
 }
 
@@ -788,6 +819,7 @@ export type RoomTemplateUncheckedUpdateWithoutPropertyInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   rooms?: Prisma.RoomUncheckedUpdateManyWithoutRoomTemplateNestedInput
 }
 
@@ -803,6 +835,7 @@ export type RoomTemplateUncheckedUpdateManyWithoutPropertyInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -849,6 +882,7 @@ export type RoomTemplateSelect<ExtArgs extends runtime.Types.Extensions.Internal
   image?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  deletedAt?: boolean
   rooms?: boolean | Prisma.RoomTemplate$roomsArgs<ExtArgs>
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.RoomTemplateCountOutputTypeDefaultArgs<ExtArgs>
@@ -867,6 +901,7 @@ export type RoomTemplateSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   image?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  deletedAt?: boolean
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["roomTemplate"]>
 
@@ -883,6 +918,7 @@ export type RoomTemplateSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   image?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  deletedAt?: boolean
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["roomTemplate"]>
 
@@ -899,9 +935,10 @@ export type RoomTemplateSelectScalar = {
   image?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  deletedAt?: boolean
 }
 
-export type RoomTemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "propertyId" | "title" | "description" | "bedsPerRoom" | "numberOfRooms" | "pricePerBed" | "type" | "amenities" | "image" | "createdAt" | "updatedAt", ExtArgs["result"]["roomTemplate"]>
+export type RoomTemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "propertyId" | "title" | "description" | "bedsPerRoom" | "numberOfRooms" | "pricePerBed" | "type" | "amenities" | "image" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["roomTemplate"]>
 export type RoomTemplateInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   rooms?: boolean | Prisma.RoomTemplate$roomsArgs<ExtArgs>
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
@@ -933,6 +970,7 @@ export type $RoomTemplatePayload<ExtArgs extends runtime.Types.Extensions.Intern
     image: string
     createdAt: Date
     updatedAt: Date
+    deletedAt: Date | null
   }, ExtArgs["result"]["roomTemplate"]>
   composites: {}
 }
@@ -1370,6 +1408,7 @@ export interface RoomTemplateFieldRefs {
   readonly image: Prisma.FieldRef<"RoomTemplate", 'String'>
   readonly createdAt: Prisma.FieldRef<"RoomTemplate", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"RoomTemplate", 'DateTime'>
+  readonly deletedAt: Prisma.FieldRef<"RoomTemplate", 'DateTime'>
 }
     
 

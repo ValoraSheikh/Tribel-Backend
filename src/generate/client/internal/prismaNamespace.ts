@@ -975,15 +975,15 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 
 export const UserScalarFieldEnum = {
   id: 'id',
-  firstName: 'firstName',
-  lastName: 'lastName',
   email: 'email',
   avatar: 'avatar',
+  createdAt: 'createdAt',
+  firstName: 'firstName',
+  lastName: 'lastName',
   phoneNo: 'phoneNo',
   role: 'role',
-  auth0Id: 'auth0Id',
   updatedAt: 'updatedAt',
-  createdAt: 'createdAt'
+  auth0Id: 'auth0Id'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -1009,8 +1009,6 @@ export type TenantScalarFieldEnum = (typeof TenantScalarFieldEnum)[keyof typeof 
 export const PropertyScalarFieldEnum = {
   id: 'id',
   tenantId: 'tenantId',
-  adminId: 'adminId',
-  title: 'title',
   type: 'type',
   address: 'address',
   gstin: 'gstin',
@@ -1020,15 +1018,17 @@ export const PropertyScalarFieldEnum = {
   postal_code: 'postal_code',
   contact_email: 'contact_email',
   contact_phone: 'contact_phone',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt',
+  images: 'images',
   latitude: 'latitude',
   longitude: 'longitude',
   amenities: 'amenities',
   description: 'description',
+  title: 'title',
   starRating: 'starRating',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  deletedAt: 'deletedAt',
-  images: 'images'
+  adminId: 'adminId'
 } as const
 
 export type PropertyScalarFieldEnum = (typeof PropertyScalarFieldEnum)[keyof typeof PropertyScalarFieldEnum]
@@ -1046,7 +1046,8 @@ export const RoomTemplateScalarFieldEnum = {
   amenities: 'amenities',
   image: 'image',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
 } as const
 
 export type RoomTemplateScalarFieldEnum = (typeof RoomTemplateScalarFieldEnum)[keyof typeof RoomTemplateScalarFieldEnum]
@@ -1055,14 +1056,15 @@ export type RoomTemplateScalarFieldEnum = (typeof RoomTemplateScalarFieldEnum)[k
 export const RoomScalarFieldEnum = {
   id: 'id',
   propertyId: 'propertyId',
-  roomTemplateId: 'roomTemplateId',
-  title: 'title',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt',
   bedCount: 'bedCount',
   description: 'description',
   pricePerBed: 'pricePerBed',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  deletedAt: 'deletedAt'
+  roomTemplateId: 'roomTemplateId',
+  title: 'title',
+  batchId: 'batchId'
 } as const
 
 export type RoomScalarFieldEnum = (typeof RoomScalarFieldEnum)[keyof typeof RoomScalarFieldEnum]
@@ -1071,6 +1073,7 @@ export type RoomScalarFieldEnum = (typeof RoomScalarFieldEnum)[keyof typeof Room
 export const BedScalarFieldEnum = {
   id: 'id',
   roomId: 'roomId',
+  userId: 'userId',
   bedNo: 'bedNo',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -1085,14 +1088,14 @@ export const BookingScalarFieldEnum = {
   propertyId: 'propertyId',
   roomId: 'roomId',
   guestId: 'guestId',
-  bedId: 'bedId',
   status: 'status',
   totalPrice: 'totalPrice',
   startDate: 'startDate',
   endDate: 'endDate',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  cancelledAt: 'cancelledAt'
+  cancelledAt: 'cancelledAt',
+  bedId: 'bedId'
 } as const
 
 export type BookingScalarFieldEnum = (typeof BookingScalarFieldEnum)[keyof typeof BookingScalarFieldEnum]
@@ -1160,20 +1163,6 @@ export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaMod
 
 
 /**
- * Reference to a field of type 'UserRole'
- */
-export type EnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole'>
-    
-
-
-/**
- * Reference to a field of type 'UserRole[]'
- */
-export type ListEnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole[]'>
-    
-
-
-/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1184,6 +1173,20 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+/**
+ * Reference to a field of type 'UserRole'
+ */
+export type EnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole'>
+    
+
+
+/**
+ * Reference to a field of type 'UserRole[]'
+ */
+export type ListEnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserRole[]'>
     
 
 
