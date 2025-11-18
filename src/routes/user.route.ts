@@ -6,6 +6,7 @@ import {
   updateUserProfile,
 } from "../controller/user.controller.ts";
 import pkg from "express-openid-connect";
+import { userValidation } from "../middleware/validation.middleware.ts";
 const { requiresAuth } = pkg;
 
 const router = Router();
