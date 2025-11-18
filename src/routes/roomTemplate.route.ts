@@ -6,11 +6,17 @@ import {
   updateRoomTemplate,
 } from "../controller/roomTemplate.controller.ts";
 import pkg from "express-openid-connect";
+import { roomTemplateValidation } from "../middleware/validation.middleware.ts";
 const { requiresAuth } = pkg;
 
 const router = Router();
 
-router.post("/:propertyId/roomTemplate", requiresAuth(), createRoomTemplate);
+router.post(
+  "/:propertyId/roomTemplate",
+  requiresAuth(),
+  roomTemplateValidation,
+  createRoomTemplate,
+);
 router.get("/:propertyId", getRoomTemplate);
 router.patch(
   "/:propertyId/roomTemplate/:roomTemplateId",

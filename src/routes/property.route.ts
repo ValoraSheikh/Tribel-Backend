@@ -7,11 +7,17 @@ import {
   updateProperty,
 } from "../controller/property.controller.ts";
 import pkg from "express-openid-connect";
+import { propertyValidation } from "../middleware/validation.middleware.ts";
 const { requiresAuth } = pkg;
 
 const router = Router();
 
-router.post("/:tenantId/property", requiresAuth(), createProperty);
+router.post(
+  "/:tenantId/property",
+  requiresAuth(),
+  propertyValidation,
+  createProperty,
+);
 router.patch(
   "/:tenantId/properties/:propertyId",
   requiresAuth(),
