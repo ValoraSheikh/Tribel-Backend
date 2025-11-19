@@ -173,3 +173,105 @@ export const getUserBookingsForAdmin = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(bookings, "Bookings fetched successfully", 200));
 });
+
+export const updateUserBooking = asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.body;
+  const { bookingId } = req.params;
+
+  if (!bookingId) {
+    throw new ApiError("Booking ID is missing", 400);
+  }
+});
+
+export const getAllBooking = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+
+  if (!req.user?.id) {
+    throw new ApiError("User ID is missing", 401);
+  }
+
+  const superAdmin = await prisma.user.findUnique({
+    where: {
+      id: req.user?.id,
+    },
+  });
+
+  if (superAdmin?.role !== "Super_Admin") {
+    throw new ApiError("Forbidden", 403);
+  }
+
+  const booking = await prisma.booking.findMany({
+    select: {
+      id: true,
+      propertyId: true,
+      roomId: true,
+      guestId: true,
+      status: true,
+      totalPrice: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
+      updatedAt: true,
+      cancelledAt: true,
+      bedId: true,
+      property: {
+        select: {
+          id: true,
+          tenantId: true,
+          type: true,
+          address: true,
+          gstin: true,
+          city: true,
+          state: true,
+          country: true,
+          postal_code: true,
+          contact_email: true,
+          contact_phone: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          images: true,
+          latitude: true,
+          longitude: true,
+          amenities: true,
+          description: true,
+          title: true,
+          starRating: true,
+          adminId: true,
+        },
+      },
+      guest: {
+        select: {
+          id: true,
+          email: true,
+          avatar: true,
+          createdAt: true,
+          firstName: true,
+          lastName: true,
+          phoneNo: true,
+          role: true,
+          updatedAt: true,
+        },
+      },
+      room: {
+        select: {
+          id: true,
+          propertyId: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
+          bedCount: true,
+          description: true,
+          pricePerBed: true,
+          roomTemplateId: true,
+          title: true,
+          batchId: true,
+        },
+      },
+    },
+    take: limit,
+    skip: skip,
+  });
+});

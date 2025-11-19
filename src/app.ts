@@ -12,6 +12,7 @@ import userRouter from "./routes/user.route.ts";
 import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
 import roomTemplateRouter from "./routes/roomTemplate.route.ts";
+import bookingRouter from "./routes/booking.route.ts";
 
 const { requiresAuth } = pkg;
 const app = express();
@@ -38,8 +39,9 @@ if (process.env.NODE_ENV === "development") {
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/tenant", tenantRouter);
-app.use("/api/v1/tenants", propertyRouter);
-app.use("/api/v1/properties", roomTemplateRouter);
+app.use("/api/v1/t/:tenantId/properties", propertyRouter);
+app.use("/api/v1/p/:propertyId/roomTemplate", roomTemplateRouter);
+app.use("/api/v1/booking", bookingRouter);
 
 app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
