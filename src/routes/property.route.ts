@@ -8,27 +8,31 @@ import {
 } from "../controller/property.controller.ts";
 import pkg from "express-openid-connect";
 import { propertyValidation } from "../middleware/validation.middleware.ts";
+import { restrictTo } from "../utils/index.ts";
 const { requiresAuth } = pkg;
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 router.post(
-  "/:tenantId/property",
+  "/",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   propertyValidation,
   createProperty,
 );
 router.patch(
-  "/:tenantId/properties/:propertyId",
+  "/:propertyId",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   updateProperty,
 );
 router.delete(
-  "/:tenantId/properties/:propertyId",
+  "/:propertyId",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   deleteProperty,
 );
-router.get("/properties/:propertyId", getPropertyDetail);
-router.get("/properties", getAllProperties);
+router.get("/:propertyId", getPropertyDetail);
+router.get("/", getAllProperties);
 
 export default router;

@@ -7,25 +7,29 @@ import {
 } from "../controller/roomTemplate.controller.ts";
 import pkg from "express-openid-connect";
 import { roomTemplateValidation } from "../middleware/validation.middleware.ts";
+import { restrictTo } from "../utils/index.ts";
 const { requiresAuth } = pkg;
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 router.post(
-  "/:propertyId/roomTemplate",
+  "/",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   roomTemplateValidation,
   createRoomTemplate,
 );
-router.get("/:propertyId", getRoomTemplate);
+router.get("/", getRoomTemplate);
 router.patch(
-  "/:propertyId/roomTemplate/:roomTemplateId",
+  "/:roomTemplateId",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   updateRoomTemplate,
 );
 router.delete(
-  "/:propertyId/roomTemplate/:roomTemplateId",
+  "/:roomTemplateId",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
   deleteRoomTemplate,
 );
 
