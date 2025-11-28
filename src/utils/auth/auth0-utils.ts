@@ -23,7 +23,7 @@ const config: Auth0Config = {
   issuerBaseURL: `https://${process.env.ISSUER_BASE_URL}`,
   authorizationParams: {
     scope: "openid profile email",
-    connection: "google-oauth2",
+    // connection: "google-oauth2",
     prompt: "consent",
     response_mode: "form_post"
   },

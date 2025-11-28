@@ -6,7 +6,10 @@ import {
   updateRoomTemplate,
 } from "../controller/roomTemplate.controller.ts";
 import pkg from "express-openid-connect";
-import { roomTemplateValidation } from "../middleware/validation.middleware.ts";
+import {
+  roomTemplateValidation,
+  updateRoomTemplateValidation,
+} from "../middleware/validation.middleware.ts";
 import { restrictTo } from "../utils/index.ts";
 const { requiresAuth } = pkg;
 
@@ -24,6 +27,7 @@ router.patch(
   "/:roomTemplateId",
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
+  updateRoomTemplateValidation,
   updateRoomTemplate,
 );
 router.delete(

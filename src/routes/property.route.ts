@@ -2,12 +2,17 @@ import { Router } from "express";
 import {
   createProperty,
   deleteProperty,
-  getAllProperties,
+  getAllPropertiesForAdmin,
   getPropertyDetail,
+  newProperties,
+  searchProperty,
   updateProperty,
 } from "../controller/property.controller.ts";
 import pkg from "express-openid-connect";
-import { propertyValidation } from "../middleware/validation.middleware.ts";
+import {
+  propertyValidation,
+  updatePropertyValidation,
+} from "../middleware/validation.middleware.ts";
 import { restrictTo } from "../utils/index.ts";
 const { requiresAuth } = pkg;
 
@@ -24,6 +29,7 @@ router.patch(
   "/:propertyId",
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
+  updatePropertyValidation,
   updateProperty,
 );
 router.delete(
@@ -32,7 +38,15 @@ router.delete(
   restrictTo("Admin", "Super_Admin"),
   deleteProperty,
 );
+router.get("/search", searchProperty);
+router.get(
+  "/",
+  requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
+  getAllPropertiesForAdmin,
+);
+
 router.get("/:propertyId", getPropertyDetail);
-router.get("/", getAllProperties);
+router.get("/newProperty", newProperties);
 
 export default router;

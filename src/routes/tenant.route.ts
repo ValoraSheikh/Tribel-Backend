@@ -6,7 +6,10 @@ import {
   updateTenant,
 } from "../controller/tenant.controller.ts";
 import pkg from "express-openid-connect";
-import { tenantValidation } from "../middleware/validation.middleware.ts";
+import {
+  tenantValidation,
+  updateTenantValidation,
+} from "../middleware/validation.middleware.ts";
 import { restrictTo } from "../utils/index.ts";
 const { requiresAuth } = pkg;
 
@@ -19,16 +22,23 @@ router.post(
   tenantValidation,
   createTenant,
 );
-router.get("/admin/all", restrictTo("Super_Admin"), getAllTenants);
 router.get(
-  "/tenantDetail/:tenantId",
+  "/admin/all",
+  requiresAuth(),
+  restrictTo("Super_Admin"),
+  getAllTenants,
+);
+router.get(
+  "/:tenantId",
+  requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
   getTenantDetail,
 );
 router.patch(
-  "/updateTenant/:tenantId",
-  restrictTo("Admin", "Super_Admin"),
+  "/:tenantId",
   requiresAuth(),
+  restrictTo("Admin", "Super_Admin"),
+  updateTenantValidation,
   updateTenant,
 );
 

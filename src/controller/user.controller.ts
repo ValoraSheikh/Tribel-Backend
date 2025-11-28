@@ -3,6 +3,8 @@ import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
 
 type AuthUser = {
   given_name: string;
+  name: string;
+  nickname: string;
   family_name: string;
   email: string;
   picture: string;
@@ -20,14 +22,14 @@ export const loginUser = asyncHandler(async (req, res) => {
   const user = await prisma.user.upsert({
     where: { auth0Id: authUser.sub },
     update: {
-      firstName: authUser.given_name,
-      lastName: authUser.family_name,
+      firstName: authUser.given_name || authUser.name,
+      lastName: authUser.family_name || authUser.nickname,
       email: authUser.email,
       avatar: authUser.picture,
     },
     create: {
-      firstName: authUser.given_name,
-      lastName: authUser.family_name,
+      firstName: authUser.given_name || authUser.name,
+      lastName: authUser.family_name || authUser.nickname,
       auth0Id: authUser.sub,
       email: authUser.email,
       avatar: authUser.picture,
