@@ -1,4 +1,3 @@
-import type { Request, Response } from "express";
 import prisma from "../utils/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
 
@@ -33,7 +32,7 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
     throw new ApiError("Tenant ID is required", 400);
   }
 
-  const tenant = await prisma.tenant.findUnique({
+  const tenantDetail = await prisma.tenant.findUnique({
     where: {
       id: tenantId,
     },
@@ -56,21 +55,22 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
     },
   });
 
-  if (!tenant) {
+  if (!tenantDetail) {
     throw new ApiError("No tenant found with this ID", 404);
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(tenant, "Tenant Fetched successfully", 200));
+    .json(new ApiResponse(tenantDetail, "Tenant Fetched successfully", 200));
 });
 
 export const getAllTenants = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
+  let limit = parseInt(req.query.limit as string) || 10;
+  limit = Math.min(Math.max(limit, 1), 50);
   const skip = (page - 1) * limit;
 
-  const tenant = await prisma.tenant.findMany({
+  const tenants = await prisma.tenant.findMany({
     select: {
       id: true,
       name: true,
@@ -88,21 +88,38 @@ export const getAllTenants = asyncHandler(async (req, res) => {
         },
       },
     },
+    take: limit,
+    skip: skip,
     orderBy: {
       createdAt: "desc",
     },
-    take: limit,
-    skip: skip,
   });
+  
+  if (!tenants.length) {
+    throw new ApiError("No tenants found", 404)
+  }
+
+  const totalTenants = await prisma.tenant.count();
 
   return res
     .status(200)
-    .json(new ApiResponse(tenant, "Fetched all tenants successfully", 200));
+    .json(
+      new ApiResponse(
+        {
+          tenants: tenants,
+          page,
+          totalTenants: totalTenants,
+          totalPages: Math.ceil(totalTenants / limit),
+        },
+        "Fetched all tenants successfully",
+        200,
+      ),
+    );
 });
 
 export const updateTenant = asyncHandler(async (req, res) => {
   const { tenantId } = req.params;
-  const { name, description, profile } = req.body;
+  const { name, description, profile, currency, timezone } = req.body;
 
   if (!tenantId) {
     throw new ApiError("Tenant ID is required", 400);
@@ -128,6 +145,8 @@ export const updateTenant = asyncHandler(async (req, res) => {
       name: name,
       description: description,
       profile: profile,
+      currency: currency,
+      timezone: timezone,
     },
   });
 

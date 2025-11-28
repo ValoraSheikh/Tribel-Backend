@@ -2,66 +2,113 @@ import prisma from "../utils/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
-  const { roomId, startDate, endDate, bedId } = req.body;
+  const { roomTemplateId, startDate, endDate } = req.body;
   const { propertyId } = req.params;
 
-  if (!req.user?.id) throw new ApiError("User ID is missing", 401);
+  if (!propertyId) throw new ApiError("Property ID is missing", 400);
 
-  if (!propertyId || !roomId || !bedId)
-    throw new ApiError("Property ID is missing", 400);
+  if (startDate < Date.now()) {
+    throw new ApiError("Start date should be bigger than today's date", 400);
+  }
 
-  const Property = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
-  });
+  if (startDate > endDate) {
+    throw new ApiError("Start date must be bigger than end date", 400);
+  }
 
-  const Room = await prisma.room.findUnique({
-    where: {
-      id: roomId,
-    },
-  });
+  const bookingCreated = await prisma.$transaction(async (tx) => {
+    if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
-  const Bed = await prisma.bed.findUnique({
-    where: {
-      id: bedId,
-    },
-  });
+    const Property = await tx.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    });
 
-  if (!Bed || !Room || !Property)
-    throw new ApiError("Property, Room and Bed not found", 404);
+    const RoomTemplate = await tx.roomTemplate.findUnique({
+      where: {
+        id: roomTemplateId,
+      },
+      select: {
+        propertyId: true,
+      },
+    });
 
-  if (Bed.roomId !== Room.id)
-    throw new ApiError("Bed does not belong to room", 400);
+    const rooms = await tx.room.findMany({
+      where: {
+        roomTemplateId: roomTemplateId,
+      },
+    });
 
-  if (Room.propertyId !== Property.id)
-    throw new ApiError("Room does not belong to property", 400);
+    if (!rooms || !Property || !RoomTemplate)
+      throw new ApiError("Property, Room template and Room not found", 404);
 
-  if (Bed.userId !== null) throw new ApiError("Bed is already Booked", 400);
+    if (RoomTemplate.propertyId !== Property.id)
+      throw new ApiError("Room template doesn't belong to Property", 400);
 
-  const booking = await prisma.booking.create({
-    data: {
-      propertyId: propertyId,
-      roomId: roomId,
-      bedId: bedId,
-      guestId: req.user.id,
-      totalPrice: Room.pricePerBed,
-      startDate,
-      endDate,
-      status: "CONFIRMED",
-    },
+    const beds = await tx.bed.findMany({
+      where: {
+        roomId: { in: rooms.map((r) => r.id) },
+      },
+    });
+
+    const bedIds = beds.map((bed) => bed.id);
+
+    const isOccupied = await tx.booking.findMany({
+      where: {
+        bedId: { in: bedIds },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      select: {
+        bedId: true,
+      },
+    });
+
+    const unavailableBeds = new Set(isOccupied.map((b) => b.bedId));
+    const freeBeds = beds.filter((bed) => !unavailableBeds.has(bed.id));
+
+    if (freeBeds.length === 0) {
+      throw new ApiError("All beds are Booked", 400);
+    }
+
+    const chooseBed = freeBeds[0];
+    const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
+
+    if (!chooseBed) {
+      throw new ApiError("No bed available", 400);
+    }
+
+    if (!selectRoom) {
+      throw new ApiError("No room available", 400);
+    }
+
+    const booking = await tx.booking.create({
+      data: {
+        propertyId: propertyId,
+        roomId: selectRoom?.id,
+        bedId: chooseBed.id,
+        guestId: req.user?.id,
+        totalPrice: selectRoom?.pricePerBed,
+        startDate,
+        endDate,
+        status: "CONFIRMED",
+      },
+    });
+
+    return {
+      booking,
+    };
   });
 
   return res
     .status(201)
-    .json(new ApiResponse(booking, "Booking created successfully", 201));
+    .json(new ApiResponse(bookingCreated, "Booking created successfully", 201));
 });
 
 export const cancelBooking = asyncHandler(async (req, res) => {
-  const { bookingId, bedId } = req.body;
+  const { bookingId } = req.body;
 
-  if (!bookingId || !bedId)
-    throw new ApiError("Booking and Bed ID is missing", 400);
+  if (!bookingId) throw new ApiError("Booking ID is missing", 400);
 
   const booking = await prisma.booking.findUnique({
     where: {
@@ -69,9 +116,17 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     },
   });
 
+  if (!booking) {
+    throw new ApiError("No booking found with this ID", 404);
+  }
+
+  if (booking.startDate <= new Date()) {
+    throw new ApiError("Can't cancel past and ongoing booking", 400);
+  }
+
   const bed = await prisma.bed.findUnique({
     where: {
-      id: bedId,
+      id: booking.bedId,
     },
   });
 
@@ -82,13 +137,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   if (booking?.cancelledAt !== null)
     throw new ApiError("Booking already cancelled", 400);
 
-  if (!booking) throw new ApiError("Booking not found", 400);
-
   if (req.user?.id !== booking?.guestId) throw new ApiError("Forbidden", 403);
-
-  if (booking.startDate <= new Date()) {
-    throw new ApiError("Can't cancel past and ongoing booking", 400);
-  }
 
   const cancelBooking = await prisma.booking.update({
     where: {
@@ -96,12 +145,13 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     },
     data: {
       cancelledAt: new Date(),
+      status: "CANCELLED",
     },
   });
 
   await prisma.bed.update({
     where: {
-      id: bedId,
+      id: booking.bedId,
     },
     data: {
       userId: null,
@@ -114,9 +164,10 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 });
 
 export const getUserBookings = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const skip = (page - 1) * limit;
+  let page = parseInt(req.query.page as string) || 1;
+  let limit = parseInt(req.query.limit as string) || 10;
+  limit = Math.min(Math.max(limit, 1), 50);
+  let skip = (page - 1) * limit;
 
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
@@ -136,11 +187,12 @@ export const getUserBookings = asyncHandler(async (req, res) => {
     .json(new ApiResponse(bookings, "Bookings fetched successfully", 200));
 });
 
-export const getUserBookingsForAdmin = asyncHandler(async (req, res) => {
+export const getBookingsForAdmin = asyncHandler(async (req, res) => {
   const { propertyId } = req.body;
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const skip = (page - 1) * limit;
+  let page = parseInt(req.query.page as string) || 1;
+  let limit = parseInt(req.query.limit as string) || 10;
+  let skip = (page - 1) * limit;
+  limit = Math.min(Math.max(limit, 1), 50);
 
   if (!propertyId) {
     throw new ApiError("Property ID is missing", 400);
@@ -169,24 +221,92 @@ export const getUserBookingsForAdmin = asyncHandler(async (req, res) => {
     throw new ApiError("No confirmed booking", 400);
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(bookings, "Bookings fetched successfully", 200));
+  const totalBookings = await prisma.booking.count({
+    where: {
+      propertyId: propertyId,
+    },
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        bookings: bookings,
+        page,
+        totalProperty: totalBookings,
+        totalPages: Math.ceil(totalBookings / limit),
+      },
+      "Bookings fetched successfully",
+      200,
+    ),
+  );
 });
 
 export const updateUserBooking = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.body;
   const { bookingId } = req.params;
 
+  if (!endDate || !startDate) {
+    throw new ApiError("Start and end date is required", 400);
+  }
+
+  if (!req.user?.id) {
+    throw new ApiError("User ID is required", 401);
+  }
+
   if (!bookingId) {
     throw new ApiError("Booking ID is missing", 400);
   }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+  });
+
+  if (!booking) {
+    throw new ApiError("No booking found", 404);
+  }
+
+  if (booking.guestId !== req.user?.id) {
+    throw new ApiError("Forbidden", 403);
+  }
+
+  const conflicts = await prisma.booking.findMany({
+    where: {
+      bedId: booking.bedId,
+      id: { not: bookingId },
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
+    },
+    select: {
+      bedId: true,
+      startDate: true,
+      endDate: true,
+    },
+  });
+
+  if (conflicts.length > 0) {
+    throw new ApiError("Selected dates are not available for this bed", 400);
+  }
+
+  const updateBooking = await prisma.booking.update({
+    where: {
+      id: bookingId,
+    },
+    data: {
+      startDate: startDate,
+      endDate: endDate,
+    },
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(updateBooking, "Booking updated successfully", 200));
 });
 
 export const getAllBooking = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const skip = (page - 1) * limit;
+  let page = parseInt(req.query.page as string) || 1;
+  let limit = parseInt(req.query.limit as string) || 10;
+  let skip = (page - 1) * limit;
+  limit = Math.min(Math.max(limit, 1), 50);
 
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
@@ -202,7 +322,7 @@ export const getAllBooking = asyncHandler(async (req, res) => {
     throw new ApiError("Forbidden", 403);
   }
 
-  const booking = await prisma.booking.findMany({
+  const bookings = await prisma.booking.findMany({
     select: {
       id: true,
       propertyId: true,
@@ -273,5 +393,27 @@ export const getAllBooking = asyncHandler(async (req, res) => {
     },
     take: limit,
     skip: skip,
+    orderBy: {
+      createdAt: "desc",
+    },
   });
+
+  if (!bookings.length) {
+    throw new ApiError("No bookings found", 404);
+  }
+
+  const totalBookings = await prisma.booking.count();
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        bookings: bookings,
+        page,
+        totalProperty: totalBookings,
+        totalPages: Math.ceil(totalBookings / limit),
+      },
+      "Bookings fetch successfully",
+      200,
+    ),
+  );
 });
