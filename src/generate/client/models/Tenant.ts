@@ -248,6 +248,7 @@ export type TenantOrderByWithRelationInput = {
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   properties?: Prisma.PropertyOrderByRelationAggregateInput
   user?: Prisma.UserOrderByWithRelationInput
+  _relevance?: Prisma.TenantOrderByRelevanceInput
 }
 
 export type TenantWhereUniqueInput = Prisma.AtLeast<{
@@ -407,6 +408,12 @@ export type TenantUncheckedUpdateManyInput = {
 export type TenantNullableScalarRelationFilter = {
   is?: Prisma.TenantWhereInput | null
   isNot?: Prisma.TenantWhereInput | null
+}
+
+export type TenantOrderByRelevanceInput = {
+  fields: Prisma.TenantOrderByRelevanceFieldEnum | Prisma.TenantOrderByRelevanceFieldEnum[]
+  sort: Prisma.SortOrder
+  search: string
 }
 
 export type TenantCountOrderByAggregateInput = {

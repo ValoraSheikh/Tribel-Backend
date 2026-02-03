@@ -8,6 +8,28 @@ export const createTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User ID is missing", 401);
   }
 
+  const user = await prisma.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+    select: {
+      tenant: true,
+    },
+  });
+
+  if (!user || user.tenant != null) {
+    throw new ApiError("User already have tenant", 401);
+  }
+
+  await prisma.user.update({
+    where: {
+      id: req.user.id,
+    },
+    data: {
+      role: "Admin",
+    },
+  });
+
   const tenant = await prisma.tenant.create({
     data: {
       name: name,
@@ -26,15 +48,23 @@ export const createTenant = asyncHandler(async (req, res) => {
 });
 
 export const getTenantDetail = asyncHandler(async (req, res) => {
-  const { tenantId } = req.params;
+  if (!req.user.id) {
+    throw new ApiError("User ID is required", 400);
+  }
 
-  if (!tenantId) {
-    throw new ApiError("Tenant ID is required", 400);
+  const user = await prisma.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError("User not found", 404);
   }
 
   const tenantDetail = await prisma.tenant.findUnique({
     where: {
-      id: tenantId,
+      userId: user.id,
     },
     select: {
       id: true,
@@ -44,12 +74,19 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
       profile: true,
       timezone: true,
       createdAt: true,
+      updatedAt: true,
+      currency: true,
+      userId: true,
       user: {
         select: {
           id: true,
           firstName: true,
           lastName: true,
           role: true,
+          auth0Id: true,
+          avatar: true,
+          email: true,
+          phoneNo: true,
         },
       },
     },
@@ -94,53 +131,36 @@ export const getAllTenants = asyncHandler(async (req, res) => {
       createdAt: "desc",
     },
   });
-  
+
   if (!tenants.length) {
-    throw new ApiError("No tenants found", 404)
+    throw new ApiError("No tenants found", 404);
   }
 
   const totalTenants = await prisma.tenant.count();
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        {
-          tenants: tenants,
-          page,
-          totalTenants: totalTenants,
-          totalPages: Math.ceil(totalTenants / limit),
-        },
-        "Fetched all tenants successfully",
-        200,
-      ),
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        tenants: tenants,
+        page,
+        totalTenants: totalTenants,
+        totalPages: Math.ceil(totalTenants / limit),
+      },
+      "Fetched all tenants successfully",
+      200,
+    ),
+  );
 });
 
 export const updateTenant = asyncHandler(async (req, res) => {
-  const { tenantId } = req.params;
   const { name, description, profile, currency, timezone } = req.body;
-
-  if (!tenantId) {
-    throw new ApiError("Tenant ID is required", 400);
-  }
 
   if (!req.user?.id) {
     throw new ApiError("User ID missing", 401);
   }
 
-  const tenantAdmin = await prisma.tenant.findUnique({
-    where: {
-      id: tenantId,
-    },
-  });
-
-  if (req.user.id !== tenantAdmin?.userId) {
-    throw new ApiError("Forbidden", 403);
-  }
-
   const tenant = await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { userId: req.user.id },
     data: {
       name: name,
       description: description,

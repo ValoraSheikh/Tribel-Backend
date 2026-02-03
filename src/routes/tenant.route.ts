@@ -18,7 +18,6 @@ const router = Router({ mergeParams: true });
 router.post(
   "/",
   requiresAuth(),
-  restrictTo("Admin", "Super_Admin"),
   tenantValidation,
   createTenant,
 );
@@ -29,13 +28,13 @@ router.get(
   getAllTenants,
 );
 router.get(
-  "/:tenantId",
+  "/",
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
   getTenantDetail,
 );
 router.patch(
-  "/:tenantId",
+  "/",
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
   updateTenantValidation,

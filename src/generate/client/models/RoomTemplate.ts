@@ -304,6 +304,7 @@ export type RoomTemplateOrderByWithRelationInput = {
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   rooms?: Prisma.RoomOrderByRelationAggregateInput
   property?: Prisma.PropertyOrderByWithRelationInput
+  _relevance?: Prisma.RoomTemplateOrderByRelevanceInput
 }
 
 export type RoomTemplateWhereUniqueInput = Prisma.AtLeast<{
@@ -490,6 +491,12 @@ export type RoomTemplateListRelationFilter = {
 
 export type RoomTemplateOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type RoomTemplateOrderByRelevanceInput = {
+  fields: Prisma.RoomTemplateOrderByRelevanceFieldEnum | Prisma.RoomTemplateOrderByRelevanceFieldEnum[]
+  sort: Prisma.SortOrder
+  search: string
 }
 
 export type RoomTemplateCountOrderByAggregateInput = {

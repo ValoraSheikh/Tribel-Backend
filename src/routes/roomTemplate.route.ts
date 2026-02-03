@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
   createRoomTemplate,
   deleteRoomTemplate,
-  getRoomTemplate,
+  getRoomTemplateDetail,
+  getRoomTemplates,
   updateRoomTemplate,
 } from "../controller/roomTemplate.controller.ts";
 import pkg from "express-openid-connect";
@@ -22,7 +23,7 @@ router.post(
   roomTemplateValidation,
   createRoomTemplate,
 );
-router.get("/", getRoomTemplate);
+router.get("/", getRoomTemplates);
 router.patch(
   "/:roomTemplateId",
   requiresAuth(),
@@ -36,5 +37,6 @@ router.delete(
   restrictTo("Admin", "Super_Admin"),
   deleteRoomTemplate,
 );
+router.get("/:roomTemplateId", getRoomTemplateDetail)
 
 export default router;

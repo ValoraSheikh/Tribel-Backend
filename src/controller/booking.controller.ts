@@ -2,12 +2,35 @@ import prisma from "../utils/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
-  const { roomTemplateId, startDate, endDate } = req.body;
-  const { propertyId } = req.params;
+  const { propertyId, roomTemplateId, startDate, endDate } = req.body;
+
+  const idempotencyKey = req.get("Idempotency-key");
+
+  if (!idempotencyKey) {
+    throw new ApiError("Idempotency key is missing", 400);
+  }
+
+  const existingKey = await prisma.idempotencyKey.findUnique({
+    where: {
+      key: idempotencyKey,
+    },
+  });
+
+  if (existingKey) {
+    if (existingKey.userId !== req.user.id) {
+      throw new ApiError("Invalid Idempotency key access", 400);
+    }
+    console.log("Things are repeated in here 🥰");
+    return res
+      .status(existingKey.responseStatus)
+      .json(existingKey.reponsesBody);
+  }
+
+  console.log("Things are not repeated in here🤢🤮");
 
   if (!propertyId) throw new ApiError("Property ID is missing", 400);
 
-  if (startDate < Date.now()) {
+  if (startDate.getTime() < Date.now()) {
     throw new ApiError("Start date should be bigger than today's date", 400);
   }
 
@@ -15,90 +38,119 @@ export const createBooking = asyncHandler(async (req, res) => {
     throw new ApiError("Start date must be bigger than end date", 400);
   }
 
-  const bookingCreated = await prisma.$transaction(async (tx) => {
-    if (!req.user?.id) throw new ApiError("User ID is missing", 401);
+  const bookingCreated = await prisma.$transaction(
+    async (tx) => {
+      if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
-    const Property = await tx.property.findUnique({
-      where: {
-        id: propertyId,
-      },
-    });
+      const Property = await tx.property.findUnique({
+        where: {
+          id: propertyId,
+        },
+      });
 
-    const RoomTemplate = await tx.roomTemplate.findUnique({
-      where: {
-        id: roomTemplateId,
-      },
-      select: {
-        propertyId: true,
-      },
-    });
+      const RoomTemplate = await tx.roomTemplate.findUnique({
+        where: {
+          id: roomTemplateId,
+        },
+        select: {
+          propertyId: true,
+        },
+      });
 
-    const rooms = await tx.room.findMany({
-      where: {
-        roomTemplateId: roomTemplateId,
-      },
-    });
+      const rooms = await tx.room.findMany({
+        where: {
+          roomTemplateId: roomTemplateId,
+        },
+      });
 
-    if (!rooms || !Property || !RoomTemplate)
-      throw new ApiError("Property, Room template and Room not found", 404);
+      if (rooms.length === 0) {
+        throw new ApiError("No rooms found", 404);
+      }
 
-    if (RoomTemplate.propertyId !== Property.id)
-      throw new ApiError("Room template doesn't belong to Property", 400);
+      if (!rooms || !Property || !RoomTemplate)
+        throw new ApiError("Property, Room template and Room not found", 404);
 
-    const beds = await tx.bed.findMany({
-      where: {
-        roomId: { in: rooms.map((r) => r.id) },
-      },
-    });
+      if (RoomTemplate.propertyId !== Property.id)
+        throw new ApiError("Room template doesn't belong to Property", 400);
 
-    const bedIds = beds.map((bed) => bed.id);
+      const beds = await tx.bed.findMany({
+        where: {
+          roomId: { in: rooms.map((r) => r.id) },
+        },
+      });
 
-    const isOccupied = await tx.booking.findMany({
-      where: {
-        bedId: { in: bedIds },
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
-      },
-      select: {
-        bedId: true,
-      },
-    });
+      const bedIds = beds.map((bed) => bed.id);
 
-    const unavailableBeds = new Set(isOccupied.map((b) => b.bedId));
-    const freeBeds = beds.filter((bed) => !unavailableBeds.has(bed.id));
+      const isOccupied = await tx.booking.findMany({
+        where: {
+          bedId: { in: bedIds },
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+        select: {
+          bedId: true,
+        },
+      });
 
-    if (freeBeds.length === 0) {
-      throw new ApiError("All beds are Booked", 400);
-    }
+      const unavailableBeds = new Set(isOccupied.map((b) => b.bedId));
+      const freeBeds = beds.filter((bed) => !unavailableBeds.has(bed.id));
 
-    const chooseBed = freeBeds[0];
-    const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
+      if (freeBeds.length === 0) {
+        throw new ApiError("All beds are Booked", 400);
+      }
 
-    if (!chooseBed) {
-      throw new ApiError("No bed available", 400);
-    }
+      const chooseBed = freeBeds[0];
+      const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
 
-    if (!selectRoom) {
-      throw new ApiError("No room available", 400);
-    }
+      if (!chooseBed) {
+        throw new ApiError("No bed available", 400);
+      }
 
-    const booking = await tx.booking.create({
-      data: {
-        propertyId: propertyId,
-        roomId: selectRoom?.id,
-        bedId: chooseBed.id,
-        guestId: req.user?.id,
-        totalPrice: selectRoom?.pricePerBed,
-        startDate,
-        endDate,
-        status: "CONFIRMED",
-      },
-    });
+      if (!selectRoom) {
+        throw new ApiError("No room available", 400);
+      }
 
-    return {
-      booking,
-    };
-  });
+      const booking = await tx.booking.create({
+        data: {
+          propertyId: propertyId,
+          roomId: selectRoom?.id,
+          bedId: chooseBed.id,
+          guestId: req.user?.id,
+          totalPrice: selectRoom?.pricePerBed,
+          startDate,
+          endDate,
+          status: "CONFIRMED",
+        },
+      });
+
+      await tx.bed.update({
+        where: {
+          id: chooseBed.id,
+        },
+        data: {
+          userId: req.user.id,
+        },
+      });
+
+      await tx.idempotencyKey.create({
+        data: {
+          key: idempotencyKey,
+          userId: req.user.id,
+          reponsesBody: booking,
+          responseStatus: 201,
+          path: req.originalUrl,
+          method: req.method,
+        },
+      });
+
+      return {
+        booking,
+      };
+    },
+    {
+      isolationLevel: "Serializable",
+    },
+  );
 
   return res
     .status(201)
@@ -123,16 +175,6 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   if (booking.startDate <= new Date()) {
     throw new ApiError("Can't cancel past and ongoing booking", 400);
   }
-
-  const bed = await prisma.bed.findUnique({
-    where: {
-      id: booking.bedId,
-    },
-  });
-
-  if (!bed) throw new ApiError("Bed not found", 404);
-
-  if (bed.userId !== req.user?.id) throw new ApiError("Forbidden", 403);
 
   if (booking?.cancelledAt !== null)
     throw new ApiError("Booking already cancelled", 400);
@@ -163,6 +205,42 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     .json(new ApiResponse(cancelBooking, "Booking cancel successfully", 200));
 });
 
+export const cancelAdminBooking = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params;
+  const { bookingId } = req.body;
+
+  if (!propertyId || !bookingId)
+    throw new ApiError("Property and Booking ID is required", 400);
+
+  const property = await prisma.property.findUnique({
+    where: {
+      id: propertyId,
+    },
+  });
+
+  if (!property) throw new ApiError("No property found with this ID", 404);
+
+  if (req.user?.id !== property.adminId)
+    throw new ApiError("You are not allowed to take this action", 403);
+
+  const booking = await prisma.booking.update({
+    where: {
+      id: bookingId,
+      propertyId: propertyId,
+    },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+    },
+  });
+
+  if (!booking) throw new ApiError("No booking found", 404);
+
+  return res
+    .status(200)
+    .json(new ApiResponse([], "Booking cancelled successfully", 200));
+});
+
 export const getUserBookings = asyncHandler(async (req, res) => {
   let page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
@@ -177,18 +255,79 @@ export const getUserBookings = asyncHandler(async (req, res) => {
     where: {
       guestId: req.user?.id,
     },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      totalPrice: true,
+      roomId: true,
+      bedId: true,
+      status: true,
+      guest: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
+      bed: {
+        select: {
+          id: true,
+          bedNo: true,
+          roomId: true,
+        },
+      },
+      room: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      createdAt: true,
+      property: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          state: true,
+          city: true,
+          images: true,
+        },
+      },
+    },
     take: limit,
     skip: skip,
     orderBy: { startDate: "desc" },
   });
 
-  return res
-    .status(200)
-    .json(new ApiResponse(bookings, "Bookings fetched successfully", 200));
+  if (!bookings) {
+    return res.status(404).json(new ApiResponse([], "No bookings found", 404));
+  }
+
+  const totalBookings = await prisma.booking.count({
+    where: {
+      guestId: req.user.id,
+    },
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        bookings: bookings,
+        page,
+        totalBookings: totalBookings,
+        totalPages: Math.ceil(totalBookings / limit),
+      },
+      "Bookings fetched successfully",
+      200,
+    ),
+  );
 });
 
 export const getBookingsForAdmin = asyncHandler(async (req, res) => {
-  const { propertyId } = req.body;
+  const { propertyId } = req.params;
   let page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   let skip = (page - 1) * limit;
@@ -212,13 +351,55 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
     where: {
       propertyId,
     },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      totalPrice: true,
+      roomId: true,
+      bedId: true,
+      status: true,
+      guest: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
+      bed: {
+        select: {
+          id: true,
+          bedNo: true,
+          roomId: true,
+        },
+      },
+      room: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      createdAt: true,
+      property: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          state: true,
+          city: true,
+          images: true,
+        },
+      },
+    },
     take: limit,
     skip: skip,
     orderBy: { startDate: "desc" },
   });
 
-  if (bookings.length === 0) {
-    throw new ApiError("No confirmed booking", 400);
+  if (!bookings) {
+    return res.status(404).json(new ApiResponse([], "No bookings found", 404));
   }
 
   const totalBookings = await prisma.booking.count({
@@ -232,7 +413,7 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
       {
         bookings: bookings,
         page,
-        totalProperty: totalBookings,
+        totalBookings: totalBookings,
         totalPages: Math.ceil(totalBookings / limit),
       },
       "Bookings fetched successfully",
@@ -409,11 +590,77 @@ export const getAllBooking = asyncHandler(async (req, res) => {
       {
         bookings: bookings,
         page,
-        totalProperty: totalBookings,
+        totalBookings: totalBookings,
         totalPages: Math.ceil(totalBookings / limit),
       },
       "Bookings fetch successfully",
       200,
     ),
   );
+});
+
+export const getBookingDetails = asyncHandler(async (req, res) => {
+  const { bookingId } = req.body;
+
+  const bookingDetails = await prisma.booking.findUnique({
+    where: {
+      id: bookingId,
+    },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      totalPrice: true,
+      roomId: true,
+      bedId: true,
+      status: true,
+      guest: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
+      bed: {
+        select: {
+          id: true,
+          bedNo: true,
+          roomId: true,
+        },
+      },
+      room: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      createdAt: true,
+      property: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          state: true,
+          city: true,
+          images: true,
+        },
+      },
+    },
+  });
+
+  if (!bookingDetails) {
+    throw new ApiError("No booking found with this ID", 404);
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        bookingDetails,
+        "Booking details fetched successfully",
+        200,
+      ),
+    );
 });
