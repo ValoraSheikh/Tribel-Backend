@@ -63,13 +63,14 @@ export const updateUserValidation = validate(
     body: z.object({
       firstName: z.string().trim().min(1),
       lastName: z.string().trim().min(1),
-      email: z.email().trim(),
-      avatar: z.url(),
+      phoneNo: z.string().trim().min(10).max(10),
+      // email: z.email().trim(),
+      // avatar: z.url(),
     }),
     params: z.object({}).optional(),
     query: z.object({}).optional(),
   }),
-)
+);
 
 export const tenantValidation = validate(
   z.object({
@@ -78,12 +79,12 @@ export const tenantValidation = validate(
       slug: z
         .string()
         .min(1)
-        .regex(/^[a-zA-Z0-9-_]+$/, "Slug cannot contain spaces")
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug cannot contain spaces")
         .trim()
         .lowercase(),
-      profile: z.url(),
+      profile: z.string(),
       description: z.string().min(10).trim(),
-      currency: z.string().uppercase().min(1).trim(),
+      currency: z.string().min(1).trim(),
       timezone: z.string().min(1).trim(),
     }),
     params: z.object({}).optional(),
@@ -103,7 +104,7 @@ export const updateTenantValidation = validate(
     params: z.object({}).optional(),
     query: z.object({}).optional(),
   }),
-)
+);
 
 export const propertyValidation = validate(
   z.object({
@@ -112,6 +113,7 @@ export const propertyValidation = validate(
       type: z.string().min(1).trim(),
       gstin: z.string().uppercase().trim().min(1),
       address: z.string().trim().min(1),
+      description: z.string().trim().min(1),
       city: z.string().min(1).trim(),
       state: z.string().min(1).trim(),
       country: z.string().min(1).trim(),
@@ -119,13 +121,19 @@ export const propertyValidation = validate(
       postal_code: z.string().min(1).trim(),
       latitude: z.coerce.number().gte(-90).lte(90),
       longitude: z.coerce.number().gte(-180).lte(180),
+      amenities: z.array(
+        z.object({
+          name: z.string().min(1).trim(),
+          icon: z.string().min(1).trim(),
+        }),
+      ),
       contact_email: z.email(),
       contact_phone: z
         .string()
         .min(10)
         .trim()
         .regex(/^\+?[0-9]{10,15}$/),
-      starRating: z.number().min(1),
+      // starRating: z.number().min(1),
     }),
     query: z.object({}).optional(),
   }),
@@ -138,6 +146,15 @@ export const updatePropertyValidation = validate(
       type: z.string().min(1).trim(),
       gstin: z.string().uppercase().trim().min(1),
       address: z.string().trim().min(1),
+      amenities: z
+        .array(
+          z.object({
+            name: z.string().min(1).trim(),
+            icon: z.string().min(1).trim(),
+          }),
+        )
+        .optional(),
+      description: z.string().trim().min(1),
       city: z.string().min(1).trim(),
       state: z.string().min(1).trim(),
       country: z.string().min(1).trim(),
@@ -154,7 +171,7 @@ export const updatePropertyValidation = validate(
     }),
     query: z.object({}).optional(),
   }),
-)
+);
 
 export const roomTemplateValidation = validate(
   z.object({
@@ -165,7 +182,14 @@ export const roomTemplateValidation = validate(
       numberOfRooms: z.coerce.number().min(1).max(250),
       pricePerBed: z.coerce.number().min(1),
       type: z.string().min(1).trim(),
-      amenities: z.record(z.string(), z.coerce.boolean()).optional().nullable(),
+      amenities: z
+        .array(
+          z.object({
+            name: z.string().min(1).trim(),
+            icon: z.string().min(1).trim(),
+          }),
+        )
+        .optional(),
       image: z.url(),
     }),
     params: z.object({
@@ -182,7 +206,14 @@ export const updateRoomTemplateValidation = validate(
       description: z.string().min(1).trim(),
       pricePerBed: z.coerce.number().min(1),
       type: z.string().min(1).trim(),
-      amenities: z.record(z.string(), z.coerce.boolean()).optional().nullable(),
+      amenities: z
+        .array(
+          z.object({
+            name: z.string().min(1).trim(),
+            icon: z.string().min(1).trim(),
+          }),
+        )
+        .optional(),
       image: z.url(),
     }),
     params: z.object({
@@ -190,22 +221,19 @@ export const updateRoomTemplateValidation = validate(
     }),
     query: z.object({}).optional(),
   }),
-)
+);
 
 export const bookingValidation = validate(
   z.object({
     body: z.object({
       roomTemplateId: z.string().min(1).trim(),
+      propertyId: z.string().min(1).trim(),
       // roomId: z.string().min(1).trim(),
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       // bedId: z.string().min(1).trim(),
     }),
-    params: z.object({
-      propertyId: z.string().min(1).trim(),
-    }),
+    params: z.object({}).optional(),
     query: z.object({}).optional(),
   }),
 );
-
-

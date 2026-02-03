@@ -120,18 +120,19 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
     );
 });
 
-export const getRoomTemplate = asyncHandler(async (req, res) => {
+export const getRoomTemplates = asyncHandler(async (req, res) => {
   const { propertyId } = req.params;
 
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
   }
 
-  const roomTemplate = await prisma.roomTemplate.findMany({
+  const roomTemplates = await prisma.roomTemplate.findMany({
     where: {
       propertyId: propertyId,
     },
     select: {
+      id: true,
       title: true,
       description: true,
       bedsPerRoom: true,
@@ -140,6 +141,8 @@ export const getRoomTemplate = asyncHandler(async (req, res) => {
       type: true,
       amenities: true,
       image: true,
+      createdAt: true,
+      updatedAt: true,
       rooms: {
         select: {
           bedCount: true,
@@ -154,7 +157,82 @@ export const getRoomTemplate = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(roomTemplate, "Room Templates fetched successfully", 200),
+      new ApiResponse(
+        roomTemplates,
+        "Room Templates fetched successfully",
+        200,
+      ),
+    );
+});
+
+export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
+  const { roomTemplateId } = req.params;
+
+  if (!roomTemplateId) {
+    throw new ApiError("Room template ID is required", 400);
+  }
+
+  const roomTemplateDetail = await prisma.roomTemplate.findUnique({
+    where: {
+      id: roomTemplateId,
+    },
+    select: {
+      id: true,
+      title: true,
+      image: true,
+      description: true,
+      amenities: true,
+      bedsPerRoom: true,
+      numberOfRooms: true,
+      pricePerBed: true,
+      createdAt: true,
+      updatedAt: true,
+      type: true,
+      deletedAt: true,
+      propertyId: true,
+      rooms: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          pricePerBed: true,
+          roomTemplateId: true,
+          bedCount: true,
+          propertyId: true,
+          createdAt: true,
+          updatedAt: true,
+          beds: {
+            select: {
+              id: true,
+              roomId: true,
+              bedNo: true,
+              createdAt: true,
+              updatedAt: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  email: true,
+                  phoneNo: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        roomTemplateDetail,
+        "Room template details fetched successfully",
+        200,
+      ),
     );
 });
 
@@ -235,81 +313,56 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Room Template and Property ID is required", 400);
   }
 
-  const property = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
-  });
-
-  if (!property) {
-    throw new ApiError("Property not found", 404);
-  }
-
   const roomTemplate = await prisma.roomTemplate.findUnique({
-    where: {
-      id: roomTemplateId,
+    where: { id: roomTemplateId },
+    include: {
+      property: {
+        select: { id: true, adminId: true },
+      },
+      rooms: {
+        select: { id: true },
+      },
     },
   });
 
   if (!roomTemplate) {
-    throw new ApiError("Room Template is not found", 404);
+    throw new ApiError("Room Template not found", 404);
   }
 
-  if (req.user?.id !== property?.adminId) {
+  if (roomTemplate.property.id !== propertyId) {
     throw new ApiError("Forbidden", 403);
   }
 
-  if (roomTemplate.propertyId !== propertyId) {
+  if (req.user?.id !== roomTemplate.property.adminId) {
     throw new ApiError("Forbidden", 403);
   }
 
-  const deleteRoomTemplate = await prisma.$transaction(async (tx) => {
-    const deleteRoomTemplate = await tx.roomTemplate.update({
-      where: {
-        id: roomTemplateId,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
-
-    if (!deleteRoomTemplate) {
-      throw new ApiError("Room Template not found", 404);
-    }
-
-    await tx.room.updateMany({
-      where: {
-        roomTemplateId: roomTemplateId,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
-
-    const rooms = await tx.room.findMany({
-      where: {
-        roomTemplateId: roomTemplateId,
-      },
-    });
-
-    rooms.flatMap(
-      async (room) =>
-        await tx.bed.updateMany({
-          where: {
-            roomId: room.id,
-          },
-          data: {
-            deletedAt: new Date(),
-          },
+  const deletedTemplate = await prisma.$transaction(async (tx) => {
+    await Promise.all(
+      roomTemplate.rooms.map((room) =>
+        tx.bed.deleteMany({
+          where: { roomId: room.id },
         }),
+      ),
     );
+
+    await tx.room.deleteMany({
+      where: { roomTemplateId },
+    });
+
+    return tx.roomTemplate.delete({
+      where: { id: roomTemplateId },
+    });
+  }, {
+    timeout: 20000, 
+    isolationLevel: "ReadUncommitted"
   });
 
   return res
     .status(200)
     .json(
       new ApiResponse(
-        deleteRoomTemplate,
+        deletedTemplate,
         "Room Template deleted successfully",
         200,
       ),

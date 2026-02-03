@@ -14,14 +14,14 @@ const { requiresAuth } = pkg;
 
 const router = Router();
 
-router.get("/profile", requiresAuth(), loginUser);
-router.get("/signout", requiresAuth(), logout);
+router.get("/profile",  loginUser);
+router.get("/signout", logout);
 router.patch(
-  "/updateUserProfile",
+  "/profile",
   requiresAuth(),
   updateUserValidation,
   updateUserProfile,
 );
-router.delete("/deleteUser", requiresAuth(), deleteUser);
+router.delete("/delete", requiresAuth(), deleteUser);
 
 export default router;

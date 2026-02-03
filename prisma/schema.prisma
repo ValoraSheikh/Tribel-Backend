@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generate/client"
+  provider        = "prisma-client"
+  output          = "../src/generate/client"
   previewFeatures = ["fullTextSearchPostgres"]
 }
 
@@ -20,10 +20,10 @@ model User {
   role       UserRole   @default(Guest)
   updatedAt  DateTime   @updatedAt
   auth0Id    String     @unique
+  beds       Bed[]
   bookings   Booking[]
   properties Property[]
   tenant     Tenant?
-  beds       Bed[]
 }
 
 model Tenant {
@@ -78,7 +78,7 @@ model Property {
 }
 
 model RoomTemplate {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   propertyId    String
   title         String
   description   String?
@@ -88,11 +88,11 @@ model RoomTemplate {
   type          String
   amenities     Json?
   image         String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
   rooms         Room[]
-  property      Property @relation(fields: [propertyId], references: [id])
+  property      Property  @relation(fields: [propertyId], references: [id])
 
   @@index([propertyId])
 }
@@ -122,14 +122,14 @@ model Room {
 model Bed {
   id        String    @id @default(uuid())
   roomId    String
-  userId    String?
   bedNo     Int
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  userId    String?
   room      Room      @relation(fields: [roomId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
   bookings  Booking[]
-  user      User? @relation(fields: [userId], references: [id])
 
   @@index([roomId])
 }
@@ -139,7 +139,7 @@ model Booking {
   propertyId  String
   roomId      String
   guestId     String
-  status      BookingStatus @default(PENDING)
+  status      BookingStatus @default(UPCOMING)
   totalPrice  Float
   startDate   DateTime
   endDate     DateTime
@@ -159,6 +159,18 @@ model Booking {
   @@index([startDate, endDate])
 }
 
+model IdempotencyKey {
+  key            String   @id @unique
+  userId         String
+  path           String
+  responseStatus Int
+  reponsesBody   Json
+  createdAt      DateTime @default(now())
+  method         String   @default("POST")
+
+  @@index([userId])
+}
+
 enum UserRole {
   Guest
   Staff
@@ -167,7 +179,8 @@ enum UserRole {
 }
 
 enum BookingStatus {
-  PENDING
+  UPCOMING
+  ONGOING
   CONFIRMED
   CANCELLED
 }

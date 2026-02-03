@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   createProperty,
   deleteProperty,
-  getAllPropertiesForAdmin,
+  getAdminProperties,
   getPropertyDetail,
   newProperties,
   searchProperty,
@@ -43,10 +43,10 @@ router.get(
   "/",
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
-  getAllPropertiesForAdmin,
+  getAdminProperties,
 );
 
-router.get("/:propertyId", getPropertyDetail);
 router.get("/newProperty", newProperties);
+router.get("/:propertyId", getPropertyDetail);
 
 export default router;

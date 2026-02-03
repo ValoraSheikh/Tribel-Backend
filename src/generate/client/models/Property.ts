@@ -387,6 +387,7 @@ export type PropertyOrderByWithRelationInput = {
   tenant?: Prisma.TenantOrderByWithRelationInput
   rooms?: Prisma.RoomOrderByRelationAggregateInput
   roomTemplate?: Prisma.RoomTemplateOrderByRelationAggregateInput
+  _relevance?: Prisma.PropertyOrderByRelevanceInput
 }
 
 export type PropertyWhereUniqueInput = Prisma.AtLeast<{
@@ -681,6 +682,12 @@ export type StringNullableListFilter<$PrismaModel = never> = {
   hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
   hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
   isEmpty?: boolean
+}
+
+export type PropertyOrderByRelevanceInput = {
+  fields: Prisma.PropertyOrderByRelevanceFieldEnum | Prisma.PropertyOrderByRelevanceFieldEnum[]
+  sort: Prisma.SortOrder
+  search: string
 }
 
 export type PropertyCountOrderByAggregateInput = {

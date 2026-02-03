@@ -13,7 +13,9 @@ type AuthUser = {
 };
 
 export const loginUser = asyncHandler(async (req, res) => {
-  if (!req.oidc || !req.oidc.isAuthenticated()) {
+  const isAuthenticated = req.oidc?.isAuthenticated?.() ?? false;
+
+  if (!isAuthenticated || !req.oidc?.user) {
     throw new ApiError("User is not authenticated", 401);
   }
 
@@ -22,8 +24,6 @@ export const loginUser = asyncHandler(async (req, res) => {
   const user = await prisma.user.upsert({
     where: { auth0Id: authUser.sub },
     update: {
-      firstName: authUser.given_name || authUser.name,
-      lastName: authUser.family_name || authUser.nickname,
       email: authUser.email,
       avatar: authUser.picture,
     },
@@ -35,6 +35,19 @@ export const loginUser = asyncHandler(async (req, res) => {
       avatar: authUser.picture,
       role: authUser.role || "Guest",
     },
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
+      auth0Id: true,
+      tenant:true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
+    }
   });
 
   return res.json(new ApiResponse(user, "User Login Successfully", 200));
@@ -51,7 +64,7 @@ export const logout = asyncHandler(async (req, res) => {
 });
 
 export const updateUserProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, avatar, phoneNo } = req.body;
+  const { firstName, lastName, phoneNo } = req.body;
 
   const authUser = req.oidc.user as AuthUser;
 
@@ -59,12 +72,16 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError("User ID is required to update profile", 400);
   }
 
+  if (!req.user || !req.user.id) {
+    throw new ApiError("User not found", 401);
+  }
+
   const updatedUser = await prisma.user.update({
-    where: { auth0Id: authUser.sub },
+    where: { id: req.user.id },
     data: {
       firstName: firstName,
       lastName: lastName,
-      avatar: avatar,
+      // avatar: avatar,
       phoneNo: phoneNo,
     },
   });

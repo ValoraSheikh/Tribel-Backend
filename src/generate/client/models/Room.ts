@@ -290,6 +290,7 @@ export type RoomOrderByWithRelationInput = {
   bookings?: Prisma.BookingOrderByRelationAggregateInput
   property?: Prisma.PropertyOrderByWithRelationInput
   roomTemplate?: Prisma.RoomTemplateOrderByWithRelationInput
+  _relevance?: Prisma.RoomOrderByRelevanceInput
 }
 
 export type RoomWhereUniqueInput = Prisma.AtLeast<{
@@ -461,6 +462,12 @@ export type RoomListRelationFilter = {
 
 export type RoomOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type RoomOrderByRelevanceInput = {
+  fields: Prisma.RoomOrderByRelevanceFieldEnum | Prisma.RoomOrderByRelevanceFieldEnum[]
+  sort: Prisma.SortOrder
+  search: string
 }
 
 export type RoomCountOrderByAggregateInput = {

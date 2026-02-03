@@ -25,7 +25,20 @@ const config: Auth0Config = {
     scope: "openid profile email",
     // connection: "google-oauth2",
     prompt: "consent",
-    response_mode: "form_post"
+    response_mode: "form_post",
+    
+  },
+  session: {
+    rolling: true,
+    cookie: {
+      secure: false,
+      sameSite: "Lax",
+      domain: "localhost",
+      
+    },
+  },
+  routes: {
+    logout: false,
   },
 };
 

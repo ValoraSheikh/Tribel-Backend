@@ -12,11 +12,13 @@ export const createProperty = asyncHandler(async (req, res) => {
     country,
     images,
     postal_code,
+    description,
     latitude,
     longitude,
     contact_email,
     contact_phone,
-    starRating,
+    amenities,
+    starRating = 0,
   } = req.body;
 
   if (!req.user?.id) {
@@ -51,6 +53,8 @@ export const createProperty = asyncHandler(async (req, res) => {
       contact_email: contact_email,
       contact_phone: contact_phone,
       starRating: starRating,
+      description: description,
+      amenities: amenities,
     },
   });
 
@@ -65,6 +69,8 @@ export const updateProperty = asyncHandler(async (req, res) => {
     type,
     gstin,
     address,
+    description,
+    amenities,
     city,
     state,
     country,
@@ -124,6 +130,8 @@ export const updateProperty = asyncHandler(async (req, res) => {
       longitude: longitude,
       contact_email: contact_email,
       contact_phone: contact_phone,
+      description: description,
+      amenities: amenities,
     },
   });
 
@@ -184,7 +192,7 @@ export const deleteProperty = asyncHandler(async (req, res) => {
     );
 });
 
-export const getAllPropertiesForAdmin = asyncHandler(async (req, res) => {
+export const getAdminProperties = asyncHandler(async (req, res) => {
   let page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   let skip = (page - 1) * limit;
@@ -206,9 +214,11 @@ export const getAllPropertiesForAdmin = asyncHandler(async (req, res) => {
 
   const properties = await prisma.property.findMany({
     where: {
-      tenantId: tenant?.id,
+      tenantId: tenant.id,
     },
     select: {
+      id: true,
+      adminId: true,
       title: true,
       type: true,
       address: true,
@@ -223,6 +233,10 @@ export const getAllPropertiesForAdmin = asyncHandler(async (req, res) => {
       images: true,
       latitude: true,
       longitude: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+      amenities: true,
     },
     take: limit,
     skip: skip,
@@ -231,8 +245,8 @@ export const getAllPropertiesForAdmin = asyncHandler(async (req, res) => {
     },
   });
 
-  if (!properties.length) {
-    throw new ApiError("No property found", 404);
+  if (!properties) {
+    return res.status(404).json(new ApiResponse([], "No Property found", 404));
   }
 
   const totalProperties = await prisma.property.count({
@@ -267,6 +281,8 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
       id: propertyId,
     },
     select: {
+      id: true,
+      adminId: true,
       title: true,
       type: true,
       address: true,
@@ -280,8 +296,14 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
       starRating: true,
       latitude: true,
       longitude: true,
+      updatedAt: true,
+      createdAt: true,
+      description: true,
+      images: true,
+      amenities: true,
       tenant: {
         select: {
+          id: true,
           name: true,
           slug: true,
           userId: true,
@@ -291,6 +313,7 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
           timezone: true,
           user: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               email: true,
@@ -314,21 +337,17 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
 });
 
 export const searchProperty = asyncHandler(async (req, res) => {
-  let { propertyName } = req.query;
+  let { property } = req.query;
   let page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   let skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
-  if (
-    !propertyName ||
-    typeof propertyName !== "string" ||
-    !propertyName.trim()
-  ) {
+  if (!property || typeof property !== "string" || !property.trim()) {
     throw new ApiError("Input required to search properties", 400);
   }
 
-  let words = propertyName.trim().split(/\s+/);
+  let words = property.trim().split(/\s+/);
 
   const [properties, totalProperties] = await prisma.$transaction([
     prisma.property.findMany({
@@ -340,7 +359,6 @@ export const searchProperty = asyncHandler(async (req, res) => {
                 contains: word,
                 mode: "insensitive",
               },
-              
             },
             {
               city: {
@@ -352,6 +370,7 @@ export const searchProperty = asyncHandler(async (req, res) => {
         })),
       },
       select: {
+        id: true,
         title: true,
         type: true,
         address: true,
@@ -390,6 +409,12 @@ export const searchProperty = asyncHandler(async (req, res) => {
                 mode: "insensitive",
               },
             },
+            {
+              state: {
+                contains: word,
+                mode: "insensitive",
+              },
+            },
           ],
         })),
       },
@@ -397,7 +422,7 @@ export const searchProperty = asyncHandler(async (req, res) => {
   ]);
 
   if (!properties.length) {
-    throw new ApiError("No properties found here", 404);
+    throw new ApiError("No properties match your search criteria", 404);
   }
 
   return res.status(200).json(
@@ -475,6 +500,7 @@ export const newProperties = asyncHandler(async (req, res) => {
 
   const properties = await prisma.property.findMany({
     select: {
+      id: true,
       title: true,
       type: true,
       address: true,
