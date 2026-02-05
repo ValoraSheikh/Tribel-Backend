@@ -1,8 +1,13 @@
-import prisma from "../utils/db.ts";
-import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
+import prisma from "../lib/db.ts";
+import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
+import { v4 as uuidv4 } from "uuid";
+import { acquireLock, releaseLock } from "../lib/redis/redis-lock.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
   const { propertyId, roomTemplateId, startDate, endDate } = req.body;
+  let key: string | undefined;
+  const keyValue = uuidv4();
+  const ttl = 5000;
 
   const idempotencyKey = req.get("Idempotency-key");
 
@@ -20,26 +25,23 @@ export const createBooking = asyncHandler(async (req, res) => {
     if (existingKey.userId !== req.user.id) {
       throw new ApiError("Invalid Idempotency key access", 400);
     }
-    console.log("Things are repeated in here 🥰");
     return res
       .status(existingKey.responseStatus)
       .json(existingKey.reponsesBody);
   }
 
-  console.log("Things are not repeated in here🤢🤮");
+  try {
+    if (!propertyId) throw new ApiError("Property ID is missing", 400);
 
-  if (!propertyId) throw new ApiError("Property ID is missing", 400);
+    if (startDate.getTime() < Date.now()) {
+      throw new ApiError("Start date should be bigger than today's date", 400);
+    }
 
-  if (startDate.getTime() < Date.now()) {
-    throw new ApiError("Start date should be bigger than today's date", 400);
-  }
+    if (startDate > endDate) {
+      throw new ApiError("Start date must be bigger than end date", 400);
+    }
 
-  if (startDate > endDate) {
-    throw new ApiError("Start date must be bigger than end date", 400);
-  }
-
-  const bookingCreated = await prisma.$transaction(
-    async (tx) => {
+    const bookingCreated = await prisma.$transaction(async (tx) => {
       if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
       const Property = await tx.property.findUnique({
@@ -100,11 +102,23 @@ export const createBooking = asyncHandler(async (req, res) => {
       }
 
       const chooseBed = freeBeds[0];
-      const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
 
-      if (!chooseBed) {
+      if (!chooseBed?.id) {
         throw new ApiError("No bed available", 400);
       }
+
+      key = `bed:lock${chooseBed.id}`;
+
+      const lock = await acquireLock(key, keyValue, ttl);
+
+      if (!lock) {
+        throw new ApiError(
+          "System is processing another booking for this room. Please retry.",
+          429,
+        );
+      }
+
+      const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
 
       if (!selectRoom) {
         throw new ApiError("No room available", 400);
@@ -146,15 +160,18 @@ export const createBooking = asyncHandler(async (req, res) => {
       return {
         booking,
       };
-    },
-    {
-      isolationLevel: "Serializable",
-    },
-  );
+    });
 
-  return res
-    .status(201)
-    .json(new ApiResponse(bookingCreated, "Booking created successfully", 201));
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(bookingCreated, "Booking created successfully", 201),
+      );
+  } catch (err) {
+    throw new ApiError(`Failed to create booking ${err}`, 400);
+  } finally {
+    await releaseLock(key!, keyValue);
+  }
 });
 
 export const cancelBooking = asyncHandler(async (req, res) => {

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import prisma from "../utils/db.ts";
-import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
+import prisma from "../lib/db.ts";
+import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 
 type BedPayload = { roomId: string; bedNo: number };
 
