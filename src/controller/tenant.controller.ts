@@ -1,5 +1,5 @@
-import prisma from "../utils/db.ts";
-import { ApiError, ApiResponse, asyncHandler } from "../utils/index.ts";
+import prisma from "../lib/db.ts";
+import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 
 export const createTenant = asyncHandler(async (req, res) => {
   const { name, slug, description, profile, currency, timezone } = req.body;

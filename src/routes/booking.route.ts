@@ -9,7 +9,7 @@ import {
   getUserBookings,
   updateUserBooking,
 } from "../controller/booking.controller.ts";
-import { restrictTo } from "../utils/index.ts";
+import { restrictTo } from "../lib/index.ts";
 import pkg from "express-openid-connect";
 import { bookingValidation } from "../middleware/validation.middleware.ts";
 

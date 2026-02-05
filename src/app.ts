@@ -6,14 +6,14 @@ import hpp from "hpp";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import pkg from "express-openid-connect";
-import { auth0middleware } from "./utils/auth/auth0-utils.ts";
+import { auth0middleware } from "./lib/auth/auth0-utils.ts";
 
 import userRouter from "./routes/user.route.ts";
 import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
 import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 import bookingRouter from "./routes/booking.route.ts";
-import { createUser, user, type UserDetail } from "./utils/user.ts";
+import { createUser, user, type UserDetail } from "./lib/user.ts";
 
 const { requiresAuth } = pkg;
 const app = express();

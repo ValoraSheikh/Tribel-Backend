@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import { ApiError } from "../utils/index.ts";
+import { ApiError } from "../lib/index.ts";
 
 type ZodSchema = z.ZodType<any>;
 

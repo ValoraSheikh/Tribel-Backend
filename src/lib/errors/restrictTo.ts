@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import ApiError from "./ApiError.ts";
-import asyncHandler from "../responses/asyncHandler.ts";
+import { asyncHandler } from "../index.ts";
 
 type ReqWithUser = Request & { user?: { role: string } };
 

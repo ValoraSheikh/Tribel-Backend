@@ -10,7 +10,7 @@ import {
   tenantValidation,
   updateTenantValidation,
 } from "../middleware/validation.middleware.ts";
-import { restrictTo } from "../utils/index.ts";
+import { restrictTo } from "../lib/index.ts";
 const { requiresAuth } = pkg;
 
 const router = Router({ mergeParams: true });
