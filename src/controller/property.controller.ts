@@ -1,5 +1,6 @@
-import prisma from "../lib/db.ts";
+import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
+import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 
 export const createProperty = asyncHandler(async (req, res) => {
   const {
@@ -24,18 +25,40 @@ export const createProperty = asyncHandler(async (req, res) => {
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
   }
-
-  const tenant = await prisma.tenant.findUnique({
+  
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub
+  })
+  
+  const user = await secureDB.user.findUnique({
     where: {
-      userId: req.user?.id,
+      id: req.user.id
     },
-  });
+    select: {
+      id: true,
+      tenant: true,
+      role: true,
+      
+    }
+  }); 
+  
+  const tenant = user?.tenant;
 
   if (!tenant) {
     throw new ApiError("Tenant not found", 404);
   }
+  
+  const withRLS = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant.id,
+    role: user.role,
+    auth0Id: req.oidc.user?.sub
+  })
 
-  const property = await prisma.property.create({
+  const property = await withRLS.property.create({
     data: {
       tenantId: tenant.id,
       adminId: req.user.id,
@@ -92,27 +115,48 @@ export const updateProperty = asyncHandler(async (req, res) => {
     throw new ApiError("User ID is missing", 401);
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: {
-      userId: req.user?.id,
-    },
-  });
+  const [user, propertyOwner] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      include: {
+        tenant: true,
+      },
+    }),
+
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+  ]);
+
+  if (!user) throw new ApiError("User not found", 404);
+
+  const tenant = user.tenant;
 
   if (!tenant) {
     throw new ApiError("Tenant not found", 404);
   }
 
-  const propertyOwner = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
-  });
-
   if (propertyOwner?.tenantId !== tenant.id) {
     throw new ApiError("Forbidden", 403);
   }
+  
 
-  const property = await prisma.property.update({
+  if (!propertyOwner?.tenantId) {
+    throw new ApiError("Forbidden", 403);
+  }
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant?.id,
+    role: user.role,
+    auth0Id: user.auth0Id
+  });
+
+  const property = await securedDB.property.update({
     where: {
       id: propertyId,
     },
@@ -155,27 +199,43 @@ export const deleteProperty = asyncHandler(async (req, res) => {
     throw new ApiError("User ID is missing", 401);
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: {
-      userId: req.user?.id,
-    },
-  });
+  const [user, propertyOwner] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      include: {
+        tenant: true,
+      },
+    }),
+
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+  ]);
+
+  if (!user) throw new ApiError("User not found", 404);
+
+  const tenant = user.tenant;
 
   if (!tenant) {
     throw new ApiError("Tenant not found", 404);
   }
 
-  const propertyOwner = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
-  });
-
   if (propertyOwner?.tenantId !== tenant.id) {
     throw new ApiError("Forbidden", 403);
   }
 
-  const deleteProperty = await prisma.property.delete({
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant?.id,
+    role: user.role,
+    auth0Id: user.auth0Id
+  });
+
+  const deleteProperty = await securedDB.property.delete({
     where: {
       id: propertyId,
     },
@@ -201,59 +261,82 @@ export const getAdminProperties = asyncHandler(async (req, res) => {
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
   }
+  
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    role: "",
+    tenantId: "",
+    auth0Id: req.oidc.user?.sub
+  })
 
-  const tenant = await prisma.tenant.findUnique({
+  const user = await secureDB.user.findUnique({
     where: {
-      userId: req.user?.id,
+      id: req.user.id,
+    },
+    include: {
+      tenant: true,
     },
   });
+
+  if (!user) throw new ApiError("User not found", 404);
+
+  const tenant = user.tenant;
 
   if (!tenant) {
     throw new ApiError("Tenant not found", 404);
   }
 
-  const properties = await prisma.property.findMany({
-    where: {
-      tenantId: tenant.id,
-    },
-    select: {
-      id: true,
-      adminId: true,
-      title: true,
-      type: true,
-      address: true,
-      gstin: true,
-      city: true,
-      state: true,
-      country: true,
-      postal_code: true,
-      contact_email: true,
-      contact_phone: true,
-      starRating: true,
-      images: true,
-      latitude: true,
-      longitude: true,
-      createdAt: true,
-      updatedAt: true,
-      deletedAt: true,
-      amenities: true,
-    },
-    take: limit,
-    skip: skip,
-    orderBy: {
-      createdAt: "desc",
-    },
+  const securedDB = getSecuredClient({
+    userId: user.id,
+    tenantId: tenant?.id,
+    role: user.role,
+    auth0Id: user.auth0Id
   });
+
+  const [properties, totalProperties] = await Promise.all([
+    securedDB.property.findMany({
+      where: {
+        tenantId: tenant.id,
+      },
+      select: {
+        id: true,
+        adminId: true,
+        title: true,
+        type: true,
+        address: true,
+        gstin: true,
+        city: true,
+        state: true,
+        country: true,
+        postal_code: true,
+        contact_email: true,
+        contact_phone: true,
+        starRating: true,
+        images: true,
+        latitude: true,
+        longitude: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        amenities: true,
+      },
+      take: limit,
+      skip: skip,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+
+    securedDB.property.count({
+      where: {
+        tenantId: tenant?.id,
+      },
+    }),
+  ]);
 
   if (!properties) {
     return res.status(404).json(new ApiResponse([], "No Property found", 404));
   }
-
-  const totalProperties = await prisma.property.count({
-    where: {
-      tenantId: tenant?.id,
-    },
-  });
 
   return res.status(200).json(
     new ApiResponse(
@@ -275,6 +358,13 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
   }
+  
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    auth0Id: req.oidc.user?.sub,
+    role: ""
+  })
 
   const propertyDetail = await prisma.property.findUnique({
     where: {

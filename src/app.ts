@@ -88,9 +88,7 @@ app.get("/auth/bridge", async (req, res, next) => {
     }
 
     const auth0User = req.oidc.user as UserDetail;
-
     let found = await user(auth0User.sub);
-
     if (!found) {
       found = await createUser(auth0User);
     }
