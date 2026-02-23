@@ -1,4 +1,4 @@
-import prisma from "./db.ts";
+import { getSecuredClient } from "./prisma/prisma-rls.ts";
 
 export interface UserDetail {
   sub: string;
@@ -11,7 +11,14 @@ export interface UserDetail {
 }
 
 export const user = async (sub: string) => {
-  const user = await prisma.user.findUnique({
+  const secureDB = getSecuredClient({
+    role: "Super_Admin",
+    tenantId: "",
+    userId: "",
+    auth0Id: sub
+  })
+  
+  const user = await secureDB.user.findUnique({
     where: {
       auth0Id: sub,
     },
@@ -28,8 +35,15 @@ export const user = async (sub: string) => {
   return user;
 };
 
-export const createUser = async (user : UserDetail) => {
-  const createUser = await prisma.user.create({
+export const createUser = async (user: UserDetail) => {
+  const secureDB = getSecuredClient({
+    role: "",
+    tenantId: "",
+    userId: "",
+    auth0Id: user.sub
+  })
+  
+  const createUser = await secureDB.user.create({
     data: {
       auth0Id: user.sub,
       email: user.email,

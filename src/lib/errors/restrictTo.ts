@@ -8,7 +8,7 @@ const restrictTo = (...roles: string[]) => {
   return asyncHandler(
     async (req: ReqWithUser, _res: Response, next: NextFunction) => {
       if (!req.user || !roles.includes(req.user.role)) {
-        throw new ApiError("You do not have permission this action", 403);
+        throw new ApiError("You do not have permission for this action", 403);
       }
       next();
     },

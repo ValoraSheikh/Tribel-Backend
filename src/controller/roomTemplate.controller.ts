@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
-import prisma from "../lib/db.ts";
+import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
+import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 
 type BedPayload = { roomId: string; bedNo: number };
 
@@ -23,19 +24,44 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
 
   const CHUNK = 1000;
 
-  const property = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.id,
   });
 
-  if (!property) {
-    throw new ApiError("Property not found", 404);
+  const [user, property] = await Promise.all([
+    secureDB.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        id: true,
+        tenant: true,
+        role: true,
+        auth0Id: true,
+      },
+    }),
+
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+  ]);
+
+  if (!property || !user) {
+    throw new ApiError("Property and user not found", 404);
   }
 
   if (req.user?.id !== property?.adminId) {
     throw new ApiError("Forbidden", 403);
   }
+
+  const tenant = user.tenant;
+
+  if (!tenant) throw new ApiError("Tenant not found", 404);
 
   const MAX_ROOMS = 250;
   const MAX_BEDS = 100;
@@ -47,7 +73,14 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
     );
   }
 
-  const roomTemplate = await prisma.$transaction(async (tx) => {
+  const withRLS = getSecuredClient({
+    userId: user?.id,
+    auth0Id: user?.auth0Id,
+    role: user?.role,
+    tenantId: tenant.id,
+  });
+
+  const roomTemplate = await withRLS.$transaction(async (tx) => {
     const roomTemplate = await tx.roomTemplate.create({
       data: {
         title: title,
@@ -75,6 +108,7 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
 
     for (let i = 0; i < roomsPayload.length; i += CHUNK) {
       const chunk = roomsPayload.slice(i, i + CHUNK);
+
       const rooms = await tx.room.createMany({
         data: chunk,
         skipDuplicates: true,
@@ -96,12 +130,14 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
       throw new ApiError("Rooms aren't available", 400);
     }
 
-    const bedsPayload: BedPayload[] = createdRooms.flatMap((room) => {
-      return Array.from({ length: room.bedCount }, (_, j) => ({
-        roomId: room.id,
-        bedNo: j + 1,
-      }));
-    });
+    const bedsPayload: BedPayload[] = createdRooms.flatMap(
+      (room: { id: string; bedCount: number }) => {
+        return Array.from({ length: room.bedCount }, (_, j) => ({
+          roomId: room.id,
+          bedNo: j + 1,
+        }));
+      },
+    );
 
     if (bedsPayload.length === 0) throw new ApiError("No beds available", 400);
 
@@ -168,11 +204,43 @@ export const getRoomTemplates = asyncHandler(async (req, res) => {
 export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
   const { roomTemplateId } = req.params;
 
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.id,
+  });
+
+  const user = await secureDB.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+    select: {
+      id: true,
+      role: true,
+      auth0Id: true,
+      tenant: true,
+    },
+  });
+
+  if (!user) throw new ApiError("User not found", 404);
+
   if (!roomTemplateId) {
     throw new ApiError("Room template ID is required", 400);
   }
 
-  const roomTemplateDetail = await prisma.roomTemplate.findUnique({
+  const tenant = user.tenant;
+
+  if (!tenant) throw new ApiError("Tenant not found", 404);
+
+  const withRLS = getSecuredClient({
+    userId: user.id,
+    auth0Id: user?.auth0Id,
+    role: user?.role,
+    tenantId: tenant.id,
+  });
+
+  const roomTemplateDetail = await withRLS.roomTemplate.findUnique({
     where: {
       id: roomTemplateId,
     },
@@ -244,31 +312,61 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Room Template and Property ID is required", 400);
   }
 
-  const property = await prisma.property.findUnique({
-    where: {
-      id: propertyId,
-    },
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
   });
 
-  if (!property) {
-    throw new ApiError("Property not found", 404);
+  const [user, property, roomTemplate] = await Promise.all([
+    secureDB.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        id: true,
+        role: true,
+        auth0Id: true,
+        tenant: true,
+      },
+    }),
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+    prisma.roomTemplate.findUnique({
+      where: {
+        id: roomTemplateId,
+      },
+    }),
+  ]);
+
+  if (!property || !user) {
+    throw new ApiError("Property and User not found", 404);
   }
 
-  if (req.user?.id !== property?.adminId) {
-    throw new ApiError("Forbidden", 403);
-  }
-
-  const roomTemplate = await prisma.roomTemplate.findUnique({
-    where: {
-      id: roomTemplateId,
-    },
-  });
+  // if (user?.id !== property?.adminId) {
+  //   throw new ApiError("Forbidden", 403);
+  // }
 
   if (roomTemplate?.propertyId !== propertyId) {
     throw new ApiError("Forbidden", 403);
   }
 
-  const updateRoomTemplate = await prisma.roomTemplate.update({
+  const tenant = user.tenant;
+
+  if (!tenant) throw new ApiError("Tenant not found", 400);
+
+  const withRLS = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant?.id,
+    role: user.role,
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const updateRoomTemplate = await withRLS.roomTemplate.update({
     where: {
       id: roomTemplateId,
     },
@@ -313,20 +411,40 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Room Template and Property ID is required", 400);
   }
 
-  const roomTemplate = await prisma.roomTemplate.findUnique({
-    where: { id: roomTemplateId },
-    include: {
-      property: {
-        select: { id: true, adminId: true },
-      },
-      rooms: {
-        select: { id: true },
-      },
-    },
+  const secureDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.id,
   });
 
-  if (!roomTemplate) {
-    throw new ApiError("Room Template not found", 404);
+  const [user, roomTemplate] = await Promise.all([
+    secureDB.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        id: true,
+        tenant: true,
+        role: true,
+        auth0Id: true,
+      },
+    }),
+    prisma.roomTemplate.findUnique({
+      where: { id: roomTemplateId },
+      include: {
+        property: {
+          select: { id: true, adminId: true },
+        },
+        rooms: {
+          select: { id: true },
+        },
+      },
+    }),
+  ]);
+
+  if (!user || !roomTemplate) {
+    throw new ApiError("User and Room Template not found", 404);
   }
 
   if (roomTemplate.property.id !== propertyId) {
@@ -337,26 +455,40 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Forbidden", 403);
   }
 
-  const deletedTemplate = await prisma.$transaction(async (tx) => {
-    await Promise.all(
-      roomTemplate.rooms.map((room) =>
-        tx.bed.deleteMany({
-          where: { roomId: room.id },
-        }),
-      ),
-    );
+  const tenant = user.tenant;
 
-    await tx.room.deleteMany({
-      where: { roomTemplateId },
-    });
+  if (!tenant) throw new ApiError("Tenant not found", 404);
 
-    return tx.roomTemplate.delete({
-      where: { id: roomTemplateId },
-    });
-  }, {
-    timeout: 20000, 
-    isolationLevel: "ReadUncommitted"
+  const withRLS = getSecuredClient({
+    userId: user?.id,
+    auth0Id: user?.auth0Id,
+    role: user?.role,
+    tenantId: tenant.id,
   });
+
+  const deletedTemplate = await withRLS.$transaction(
+    async (tx) => {
+      await Promise.all([
+        roomTemplate.rooms.map((room: { id: string }) =>
+          tx.bed.deleteMany({
+            where: { roomId: room.id },
+          }),
+        ),
+
+        await tx.room.deleteMany({
+          where: { roomTemplateId },
+        }),
+      ]);
+
+      return tx.roomTemplate.delete({
+        where: { id: roomTemplateId },
+      });
+    },
+    {
+      timeout: 20000,
+      isolationLevel: "ReadUncommitted",
+    },
+  );
 
   return res
     .status(200)

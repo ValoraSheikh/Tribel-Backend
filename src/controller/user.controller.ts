@@ -1,5 +1,5 @@
-import prisma from "../lib/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
+import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 
 type AuthUser = {
   given_name: string;
@@ -21,7 +21,14 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const authUser = req.oidc.user as AuthUser;
 
-  const user = await prisma.user.upsert({
+  const securedDB = getSecuredClient({
+    tenantId: "",
+    role: "",
+    userId: req.user.id || "",
+    auth0Id: authUser.sub,
+  });
+
+  const user = await securedDB.user.upsert({
     where: { auth0Id: authUser.sub },
     update: {
       email: authUser.email,
@@ -42,12 +49,12 @@ export const loginUser = asyncHandler(async (req, res) => {
       avatar: true,
       role: true,
       auth0Id: true,
-      tenant:true,
+      tenant: true,
       createdAt: true,
       updatedAt: true,
       id: true,
       phoneNo: true,
-    }
+    },
   });
 
   return res.json(new ApiResponse(user, "User Login Successfully", 200));
@@ -76,7 +83,14 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError("User not found", 401);
   }
 
-  const updatedUser = await prisma.user.update({
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: authUser.sub,
+  });
+
+  const updatedUser = await securedDB.user.update({
     where: { id: req.user.id },
     data: {
       firstName: firstName,
@@ -94,7 +108,14 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   const authUser = req.oidc.user as AuthUser;
 
-  const deletedUser = await prisma.user.delete({
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: authUser.sub,
+  });
+
+  const deletedUser = await securedDB.user.delete({
     where: {
       auth0Id: authUser.sub,
     },
