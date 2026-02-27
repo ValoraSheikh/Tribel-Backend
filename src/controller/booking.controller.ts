@@ -52,59 +52,22 @@ export const createBooking = asyncHandler(async (req, res) => {
     const bookingCreated = await securedDB.$transaction(async (tx) => {
       if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
-      const [Property, RoomTemplate, rooms] = await Promise.all([
-        tx.property.findUnique({
-          where: {
-            id: propertyId,
-          },
-        }),
-        tx.roomTemplate.findUnique({
-          where: {
-            id: roomTemplateId,
-          },
-          select: {
-            propertyId: true,
-          },
-        }),
-        tx.room.findMany({
-          where: {
-            roomTemplateId: roomTemplateId,
-          },
-        }),
-      ]);
-
-      if (rooms.length === 0) {
-        throw new ApiError("No rooms found", 404);
-      }
-
-      if (!rooms || !Property || !RoomTemplate)
-        throw new ApiError("Property, Room template and Room not found", 404);
-
-      if (RoomTemplate.propertyId !== Property.id)
-        throw new ApiError("Room template doesn't belong to Property", 400);
-
-      const beds = await tx.bed.findMany({
-        where: {
-          roomId: { in: rooms.map((r) => r.id) },
-        },
-      });
-
-      const bedIds = beds.map((bed) => bed.id);
-
-      const isOccupied = await tx.booking.findMany({
-        where: {
-          bedId: { in: bedIds },
-          startDate: { lte: endDate },
-          endDate: { gte: startDate },
-        },
-        select: {
-          bedId: true,
-        },
-      });
-
-      const unavailableBeds = new Set(isOccupied.map((b) => b.bedId));
-      const freeBeds = beds.filter((bed) => !unavailableBeds.has(bed.id));
-
+      const freeBeds = await tx.$queryRaw<{ id: string; roomId: string; pricePerBed: number }[]>`
+        SELECT b.id, b."roomId", r."pricePerBed"
+              FROM "Bed" b
+              JOIN "Room" r ON b."roomId" = r.id
+              WHERE r."roomTemplateId" = ${roomTemplateId}
+              AND NOT EXISTS (
+                  SELECT 1 
+                  FROM "Booking" bk 
+                  WHERE bk."bedId" = b.id 
+                  AND bk."startDate" < ${endDate} 
+                  AND bk."endDate" > ${startDate}
+              )
+              LIMIT 1
+              FOR UPDATE SKIP LOCKED;
+        `;
+  
       if (freeBeds.length === 0) {
         throw new ApiError("All beds are Booked", 400);
       }
@@ -126,20 +89,14 @@ export const createBooking = asyncHandler(async (req, res) => {
         );
       }
 
-      const selectRoom = rooms.find((r) => r.id === chooseBed?.roomId);
-
-      if (!selectRoom) {
-        throw new ApiError("No room available", 400);
-      }
-
       const [booking] = await Promise.all([
         tx.booking.create({
           data: {
             propertyId: propertyId,
-            roomId: selectRoom?.id,
+            roomId: chooseBed?.roomId,
             bedId: chooseBed.id,
             guestId: req.user?.id,
-            totalPrice: selectRoom?.pricePerBed,
+            totalPrice: chooseBed?.pricePerBed,
             startDate,
             endDate,
             status: "CONFIRMED",
@@ -169,6 +126,9 @@ export const createBooking = asyncHandler(async (req, res) => {
       return {
         booking,
       };
+    }, {
+      maxWait: 5000,
+      timeout: 10000
     });
 
     return res

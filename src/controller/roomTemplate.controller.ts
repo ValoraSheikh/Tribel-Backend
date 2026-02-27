@@ -3,7 +3,7 @@ import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 
-type BedPayload = { roomId: string; bedNo: number };
+type BedPayload = Promise<{ roomId: string; bedNo: number }[]>;
 
 export const createRoomTemplate = asyncHandler(async (req, res) => {
   const { propertyId } = req.params;
@@ -22,7 +22,16 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Property ID is required", 400);
   }
 
-  const CHUNK = 1000;
+  const MAX_ROOMS = 250;
+  const MAX_BEDS = 100;
+
+  if (numberOfRooms > MAX_ROOMS || bedsPerRoom > MAX_BEDS) {
+    throw new ApiError(
+      `Limits: Number of rooms can't be more than ${MAX_ROOMS}, 
+      Number of beds per room can't be more than ${MAX_BEDS}`,
+      400,
+    );
+  }
 
   const secureDB = getSecuredClient({
     userId: req.user.id,
@@ -33,21 +42,11 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
 
   const [user, property] = await Promise.all([
     secureDB.user.findUnique({
-      where: {
-        id: req.user.id,
-      },
-      select: {
-        id: true,
-        tenant: true,
-        role: true,
-        auth0Id: true,
-      },
+      where: { id: req.user.id },
+      select: { id: true, tenant: true, role: true, auth0Id: true },
     }),
-
     prisma.property.findUnique({
-      where: {
-        id: propertyId,
-      },
+      where: { id: propertyId },
     }),
   ]);
 
@@ -60,18 +59,7 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
   }
 
   const tenant = user.tenant;
-
   if (!tenant) throw new ApiError("Tenant not found", 404);
-
-  const MAX_ROOMS = 250;
-  const MAX_BEDS = 100;
-
-  if (numberOfRooms > MAX_ROOMS || bedsPerRoom > MAX_BEDS) {
-    throw new ApiError(
-      `Limits: Number of rooms can't be more than ${MAX_ROOMS}, Number of beds per room can't be more than ${MAX_BEDS}`,
-      400,
-    );
-  }
 
   const withRLS = getSecuredClient({
     userId: user?.id,
@@ -80,74 +68,71 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
     tenantId: tenant.id,
   });
 
-  const roomTemplate = await withRLS.$transaction(async (tx) => {
-    const roomTemplate = await tx.roomTemplate.create({
-      data: {
-        title: title,
-        propertyId: propertyId,
-        description: description,
-        bedsPerRoom: bedsPerRoom,
-        numberOfRooms: numberOfRooms,
-        pricePerBed: pricePerBed,
-        type: type,
-        amenities: amenities,
-        image: image,
-      },
-    });
+  const roomTemplate = await withRLS.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true);`;
+      await tx.$executeRaw`SELECT set_config('app.current_userId', ${user.id}, true);`;
+      await tx.$executeRaw`SELECT set_config('app.current_role', ${user.role}, true);`;
+      await tx.$executeRaw`SELECT set_config('app.current_user_auth0_id', ${user?.auth0Id}::text, true);`;
 
-    const batchId = uuidv4();
-
-    const roomsPayload = Array.from({ length: numberOfRooms }, (_, i) => ({
-      title: `Room ${i + 1}`,
-      bedCount: bedsPerRoom,
-      pricePerBed: pricePerBed,
-      propertyId: propertyId,
-      roomTemplateId: roomTemplate.id,
-      batchId,
-    }));
-
-    for (let i = 0; i < roomsPayload.length; i += CHUNK) {
-      const chunk = roomsPayload.slice(i, i + CHUNK);
-
-      const rooms = await tx.room.createMany({
-        data: chunk,
-        skipDuplicates: true,
+      const createdTemplate = await tx.roomTemplate.create({
+        data: {
+          title,
+          propertyId,
+          description,
+          bedsPerRoom,
+          numberOfRooms,
+          pricePerBed,
+          type,
+          amenities: amenities ?? [],
+          image: image ?? [],
+        },
       });
-    }
 
-    const createdRooms = await tx.room.findMany({
-      where: {
-        roomTemplateId: roomTemplate.id,
-        batchId,
-      },
-      select: {
-        id: true,
-        bedCount: true,
-      },
-    });
+      const roomTemplateId = createdTemplate.id;
+      const batchId = uuidv4();
+      const now = new Date();
 
-    if (createdRooms.length === 0) {
-      throw new ApiError("Rooms aren't available", 400);
-    }
+      await tx.$executeRaw`
+      WITH inserted_rooms AS (
+        INSERT INTO "Room" (
+          "id", "title", "bedCount", "pricePerBed",
+          "propertyId", "roomTemplateId", "batchId",
+          "createdAt", "updatedAt"
+        )
+        SELECT
+          gen_random_uuid(),
+          'Room ' || i,
+          ${bedsPerRoom},
+          ${pricePerBed},
+          ${propertyId},
+          ${roomTemplateId},
+          ${batchId},
+          ${now},
+          ${now}
+        FROM generate_series(1, ${numberOfRooms}) AS t(i)
+        RETURNING "id"
+      )
+      INSERT INTO "Bed" (
+        "id", "roomId", "bedNo", "createdAt", "updatedAt"
+      )
+      SELECT
+        gen_random_uuid(),
+        r.id,
+        s.bed_num,
+        ${now},
+        ${now}
+      FROM inserted_rooms r
+      CROSS JOIN generate_series(1, ${bedsPerRoom}) AS s(bed_num);
+    `;
 
-    const bedsPayload: BedPayload[] = createdRooms.flatMap(
-      (room: { id: string; bedCount: number }) => {
-        return Array.from({ length: room.bedCount }, (_, j) => ({
-          roomId: room.id,
-          bedNo: j + 1,
-        }));
-      },
-    );
-
-    if (bedsPayload.length === 0) throw new ApiError("No beds available", 400);
-
-    for (let i = 0; i < bedsPayload.length; i += CHUNK) {
-      const chunk = bedsPayload.slice(i, i + CHUNK);
-      await tx.bed.createMany({ data: chunk, skipDuplicates: true });
-    }
-
-    return roomTemplate;
-  });
+      return createdTemplate;
+    },
+    {
+      maxWait: 5000,
+      timeout: 10000,
+    },
+  );
 
   return res
     .status(201)
