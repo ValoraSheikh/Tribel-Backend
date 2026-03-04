@@ -49,87 +49,92 @@ export const createBooking = asyncHandler(async (req, res) => {
       auth0Id: req.oidc.user?.sub,
     });
 
-    const bookingCreated = await securedDB.$transaction(async (tx) => {
-      if (!req.user?.id) throw new ApiError("User ID is missing", 401);
+    const bookingCreated = await securedDB.$transaction(
+      async (tx) => {
+        if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
-      const freeBeds = await tx.$queryRaw<{ id: string; roomId: string; pricePerBed: number }[]>`
+        const freeBeds = await tx.$queryRaw<
+          { id: string; roomId: string; pricePerBed: number }[]
+        >`
         SELECT b.id, b."roomId", r."pricePerBed"
               FROM "Bed" b
               JOIN "Room" r ON b."roomId" = r.id
               WHERE r."roomTemplateId" = ${roomTemplateId}
               AND NOT EXISTS (
-                  SELECT 1 
-                  FROM "Booking" bk 
-                  WHERE bk."bedId" = b.id 
-                  AND bk."startDate" < ${endDate} 
+                  SELECT 1
+                  FROM "Booking" bk
+                  WHERE bk."bedId" = b.id
+                  AND bk."startDate" < ${endDate}
                   AND bk."endDate" > ${startDate}
               )
               LIMIT 1
               FOR UPDATE SKIP LOCKED;
         `;
-  
-      if (freeBeds.length === 0) {
-        throw new ApiError("All beds are Booked", 400);
-      }
 
-      const chooseBed = freeBeds[0];
+        if (freeBeds.length === 0) {
+          throw new ApiError("All beds are Booked", 400);
+        }
 
-      if (!chooseBed?.id) {
-        throw new ApiError("No bed available", 400);
-      }
+        const chooseBed = freeBeds[0];
 
-      key = `bed:lock${chooseBed.id}`;
+        if (!chooseBed?.id) {
+          throw new ApiError("No bed available", 400);
+        }
 
-      const lock = await acquireLock(key, keyValue, ttl);
+        key = `bed:lock${chooseBed.id}`;
 
-      if (!lock) {
-        throw new ApiError(
-          "System is processing another booking for this room. Please retry.",
-          429,
-        );
-      }
+        const lock = await acquireLock(key, keyValue, ttl);
 
-      const [booking] = await Promise.all([
-        tx.booking.create({
+        if (!lock) {
+          throw new ApiError(
+            "System is processing another booking for this room. Please retry.",
+            429,
+          );
+        }
+
+        const [booking] = await Promise.all([
+          tx.booking.create({
+            data: {
+              propertyId: propertyId,
+              roomId: chooseBed?.roomId,
+              bedId: chooseBed.id,
+              guestId: req.user?.id,
+              totalPrice: chooseBed?.pricePerBed,
+              startDate,
+              endDate,
+              status: "CONFIRMED",
+            },
+          }),
+          tx.bed.update({
+            where: {
+              id: chooseBed.id,
+            },
+            data: {
+              userId: req.user.id,
+            },
+          }),
+        ]);
+
+        await tx.idempotencyKey.create({
           data: {
-            propertyId: propertyId,
-            roomId: chooseBed?.roomId,
-            bedId: chooseBed.id,
-            guestId: req.user?.id,
-            totalPrice: chooseBed?.pricePerBed,
-            startDate,
-            endDate,
-            status: "CONFIRMED",
-          },
-        }),
-        tx.bed.update({
-          where: {
-            id: chooseBed.id,
-          },
-          data: {
+            key: idempotencyKey,
             userId: req.user.id,
+            reponsesBody: booking,
+            responseStatus: 201,
+            path: req.originalUrl,
+            method: req.method,
           },
-        }),
-      ]);
+        });
 
-      await tx.idempotencyKey.create({
-        data: {
-          key: idempotencyKey,
-          userId: req.user.id,
-          reponsesBody: booking,
-          responseStatus: 201,
-          path: req.originalUrl,
-          method: req.method,
-        },
-      });
-
-      return {
-        booking,
-      };
-    }, {
-      maxWait: 5000,
-      timeout: 10000
-    });
+        return {
+          booking,
+        };
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      },
+    );
 
     return res
       .status(201)
