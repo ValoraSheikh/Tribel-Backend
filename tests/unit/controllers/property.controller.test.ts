@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import {
   createProperty,
   deleteProperty,
@@ -10,8 +11,8 @@ import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import { ApiError } from "../../../src/lib";
 import prisma from "../../../src/lib/prisma/db";
 
-jest.mock("../../../src/lib/index.ts", () => {
-  const original = jest.requireActual("../../../src/lib/index.ts");
+vi.mock("../../../src/lib/index.ts", async () => {
+  const original = await vi.importActual<any>("../../../src/lib/index.ts");
   return {
     ...original,
     asyncHandler: (fn: any) => (req: any, res: any, next: any) => {
@@ -20,17 +21,17 @@ jest.mock("../../../src/lib/index.ts", () => {
   };
 });
 
-jest.mock("../../../src/lib/prisma/db.ts", () => ({
+vi.mock("../../../src/lib/prisma/db.ts", () => ({
   __esModule: true,
   default: {
-    property: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
-    user: { findUnique: jest.fn() },
-    $transaction: jest.fn(),
+    property: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
+    user: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
-jest.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
-  getSecuredClient: jest.fn(),
+vi.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
+  getSecuredClient: vi.fn(),
 }));
 
 describe("Property Controller", () => {
@@ -40,19 +41,19 @@ describe("Property Controller", () => {
   let mockSecuredDb: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockSecuredDb = {
-      user: { findUnique: jest.fn() },
+      user: { findUnique: vi.fn() },
       property: {
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
       },
     };
-    (getSecuredClient as jest.Mock).mockReturnValue(mockSecuredDb);
+    (getSecuredClient as any).mockReturnValue(mockSecuredDb);
 
     mockReq = {
       user: { id: "user-123", role: "Admin" },
@@ -63,14 +64,13 @@ describe("Property Controller", () => {
     };
 
     mockRes = {
-      json: jest.fn(),
-      status: jest.fn().mockReturnThis(),
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
-  // TEST: create property
   describe("createProperty", () => {
     test("should create property and return 201 success", async () => {
       mockReq.body = { title: "Grand Hotel", type: "Hotel", city: "NYC" };
@@ -134,7 +134,6 @@ describe("Property Controller", () => {
     });
   });
 
-  // TEST: update property
   describe("updateProperty", () => {
     test("should update property and return 200", async () => {
       mockReq.params = { propertyId: "prop-1" };
@@ -152,10 +151,8 @@ describe("Property Controller", () => {
         tenantId: "tenant-99",
       };
 
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(
-        mockPropertyOwner,
-      );
+      (prisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (prisma.property.findUnique as any).mockResolvedValue(mockPropertyOwner);
 
       const fakeUpdatedProperty = { id: "prop-1", title: "Updated Title" };
       mockSecuredDb.property.update.mockResolvedValue(fakeUpdatedProperty);
@@ -197,8 +194,8 @@ describe("Property Controller", () => {
 
     test("should throw 404 if user not found", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({});
+      (prisma.user.findUnique as any).mockResolvedValue(null);
+      (prisma.property.findUnique as any).mockResolvedValue({});
 
       await updateProperty(mockReq, mockRes, mockNext);
 
@@ -209,11 +206,11 @@ describe("Property Controller", () => {
 
     test("should throw 404 if tenant not found", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as any).mockResolvedValue({
         id: "user-123",
         tenant: null,
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({});
+      (prisma.property.findUnique as any).mockResolvedValue({});
 
       await updateProperty(mockReq, mockRes, mockNext);
 
@@ -224,11 +221,11 @@ describe("Property Controller", () => {
 
     test("should throw 403 if tenant IDs do not match", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as any).mockResolvedValue({
         id: "user-123",
         tenant: { id: "tenant-99" },
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         tenantId: "tenant-WRONG",
       });
@@ -240,7 +237,6 @@ describe("Property Controller", () => {
     });
   });
 
-  // TEST: delete property
   describe("deleteProperty", () => {
     test("should delete property and return 200", async () => {
       mockReq.params = { propertyId: "prop-1" };
@@ -257,10 +253,8 @@ describe("Property Controller", () => {
         tenantId: "tenant-99",
       };
 
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(
-        mockPropertyOwner,
-      );
+      (prisma.user.findUnique as any).mockResolvedValue(mockUser);
+      (prisma.property.findUnique as any).mockResolvedValue(mockPropertyOwner);
 
       const fakeDeletedProperty = { id: "prop-1", title: "Deleted Property" };
       mockSecuredDb.property.delete.mockResolvedValue(fakeDeletedProperty);
@@ -298,8 +292,8 @@ describe("Property Controller", () => {
 
     test("should throw 404 if user not found", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({});
+      (prisma.user.findUnique as any).mockResolvedValue(null);
+      (prisma.property.findUnique as any).mockResolvedValue({});
 
       await deleteProperty(mockReq, mockRes, mockNext);
 
@@ -309,11 +303,11 @@ describe("Property Controller", () => {
 
     test("should throw 404 if tenant not found", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as any).mockResolvedValue({
         id: "user-123",
         tenant: null,
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({});
+      (prisma.property.findUnique as any).mockResolvedValue({});
 
       await deleteProperty(mockReq, mockRes, mockNext);
 
@@ -323,11 +317,11 @@ describe("Property Controller", () => {
 
     test("should throw 403 if tenant IDs do not match", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as any).mockResolvedValue({
         id: "user-123",
         tenant: { id: "tenant-99" },
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         tenantId: "tenant-WRONG",
       });
@@ -340,11 +334,11 @@ describe("Property Controller", () => {
 
     test("should throw 404 if deleteProperty returns null", async () => {
       mockReq.params = { propertyId: "prop-1" };
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as any).mockResolvedValue({
         id: "user-123",
         tenant: { id: "tenant-99" },
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         tenantId: "tenant-99",
       });
@@ -357,7 +351,6 @@ describe("Property Controller", () => {
     });
   });
 
-  // TEST: get admin properties
   describe("getAdminProperties", () => {
     test("should return paginated properties and 200 status", async () => {
       mockReq.query = { page: "1", limit: "10" };
@@ -446,7 +439,6 @@ describe("Property Controller", () => {
     });
   });
 
-  // TEST: get property details
   describe("getPropertyDetail", () => {
     test("should return property details and 200 status", async () => {
       mockReq.params = { propertyId: "prop-1" };
@@ -458,9 +450,7 @@ describe("Property Controller", () => {
         tenant: { id: "tenant-99", name: "Zappotel" },
       };
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(
-        fakePropertyDetail,
-      );
+      (prisma.property.findUnique as any).mockResolvedValue(fakePropertyDetail);
 
       await getPropertyDetail(mockReq, mockRes, mockNext);
 
@@ -485,7 +475,7 @@ describe("Property Controller", () => {
     test("should throw 404 if property is not found", async () => {
       mockReq.params = { propertyId: "prop-1" };
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.property.findUnique as any).mockResolvedValue(null);
 
       await getPropertyDetail(mockReq, mockRes, mockNext);
 
@@ -494,7 +484,6 @@ describe("Property Controller", () => {
     });
   });
 
-  // TEST: searchProperty
   describe("searchProperty", () => {
     test("should return matching properties and 200 status", async () => {
       mockReq.query = { property: "Luxury Hotel", page: "1", limit: "10" };
@@ -503,7 +492,7 @@ describe("Property Controller", () => {
         { id: "prop-1", title: "Luxury Hotel NYC", city: "NYC", state: "NY" },
       ];
 
-      (prisma.$transaction as jest.Mock).mockResolvedValue([fakeProperties, 1]);
+      (prisma.$transaction as any).mockResolvedValue([fakeProperties, 1]);
 
       await searchProperty(mockReq, mockRes, mockNext);
 
@@ -531,7 +520,7 @@ describe("Property Controller", () => {
     test("should throw 404 if no properties match search criteria", async () => {
       mockReq.query = { property: "NonExistentHotel" };
 
-      (prisma.$transaction as jest.Mock).mockResolvedValue([[], 0]);
+      (prisma.$transaction as any).mockResolvedValue([[], 0]);
 
       await searchProperty(mockReq, mockRes, mockNext);
 

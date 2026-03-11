@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import {
   createTenant,
   getAllTenants,
@@ -8,8 +9,8 @@ import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
 
-jest.mock("../../../src/lib/index.ts", () => {
-  const original = jest.requireActual("../../../src/lib/index.ts");
+vi.mock("../../../src/lib/index.ts", async () => {
+  const original = await vi.importActual<any>("../../../src/lib/index.ts");
   return {
     ...original,
     asyncHandler: (fn: any) => (req: any, res: any, next: any) => {
@@ -18,16 +19,16 @@ jest.mock("../../../src/lib/index.ts", () => {
   };
 });
 
-jest.mock("../../../src/lib/prisma/db.ts", () => ({
+vi.mock("../../../src/lib/prisma/db.ts", () => ({
   __esModule: true,
   default: {
-    tenant: { create: jest.fn(), findFirst: jest.fn() },
-    user: { findFirst: jest.fn() },
+    tenant: { create: vi.fn(), findFirst: vi.fn() },
+    user: { findFirst: vi.fn() },
   },
 }));
 
-jest.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
-  getSecuredClient: jest.fn(),
+vi.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
+  getSecuredClient: vi.fn(),
 }));
 
 describe("Tenant Controller", () => {
@@ -37,21 +38,21 @@ describe("Tenant Controller", () => {
   let mockSecuredDb: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockSecuredDb = {
       user: {
-        findUnique: jest.fn(),
-        update: jest.fn(),
+        findUnique: vi.fn(),
+        update: vi.fn(),
       },
       tenant: {
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
-        update: jest.fn(),
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
+        update: vi.fn(),
       },
     };
-    (getSecuredClient as jest.Mock).mockReturnValue(mockSecuredDb);
+    (getSecuredClient as any).mockReturnValue(mockSecuredDb);
 
     mockReq = {
       user: { id: "user-123", role: "Guest" },
@@ -61,14 +62,13 @@ describe("Tenant Controller", () => {
     };
 
     mockRes = {
-      json: jest.fn(),
-      status: jest.fn().mockReturnThis(),
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
-  // TEST: createTenant
   describe("createTenant", () => {
     test("should successfully create a tenant and upgrade user role", async () => {
       mockReq.body = { name: "Zappotel NYC", slug: "zappotel-nyc" };
@@ -81,7 +81,7 @@ describe("Tenant Controller", () => {
       mockSecuredDb.user.update.mockResolvedValue({});
 
       const fakeTenant = { id: "tenant-99", name: "Zappotel NYC" };
-      (prisma.tenant.create as jest.Mock).mockResolvedValue(fakeTenant);
+      (prisma.tenant.create as any).mockResolvedValue(fakeTenant);
 
       await createTenant(mockReq, mockRes, mockNext);
 
@@ -115,12 +115,11 @@ describe("Tenant Controller", () => {
     });
   });
 
-  // TEST: getAllTenants
   describe("getAllTenants", () => {
     test("should return list of tenants if user is Super_Admin", async () => {
       mockReq.query = { page: "1", limit: "10" };
 
-      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.user.findFirst as any).mockResolvedValue({
         id: "user-123",
         role: "Super_Admin",
       });
@@ -139,7 +138,7 @@ describe("Tenant Controller", () => {
     });
 
     test("should throw 403 if user is NOT Super_Admin", async () => {
-      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.user.findFirst as any).mockResolvedValue({
         id: "user-123",
         role: "Admin",
       });
@@ -152,7 +151,6 @@ describe("Tenant Controller", () => {
     });
   });
 
-  // TEST: updateTenant
   describe("updateTenant", () => {
     test("should successfully update tenant and return 200", async () => {
       mockReq.body = {
@@ -160,7 +158,7 @@ describe("Tenant Controller", () => {
         description: "New Description",
       };
 
-      (prisma.tenant.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.tenant.findFirst as any).mockResolvedValue({
         id: "tenant-99",
         userId: "user-123",
       });
@@ -190,7 +188,7 @@ describe("Tenant Controller", () => {
     });
 
     test("should throw 404 if tenant is not found", async () => {
-      (prisma.tenant.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.tenant.findFirst as any).mockResolvedValue(null);
 
       await updateTenant(mockReq, mockRes, mockNext);
 
@@ -212,7 +210,6 @@ describe("Tenant Controller", () => {
     });
   });
 
-  // TEST: getTenantDetail
   describe("getTenantDetail", () => {
     test("should fetch tenant details and return 200", async () => {
       const fakeUser = {

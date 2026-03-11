@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import {
   createBooking,
   cancelBooking,
@@ -13,17 +14,17 @@ import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
 import { acquireLock, releaseLock } from "../../../src/lib/redis/redis-lock";
 
-jest.mock("uuid", () => ({
-  v4: jest.fn(() => "mocked-uuid"),
+vi.mock("uuid", () => ({
+  v4: vi.fn(() => "mocked-uuid"),
 }));
 
-jest.mock("../../../src/lib/redis/redis-lock.ts", () => ({
-  acquireLock: jest.fn(),
-  releaseLock: jest.fn(),
+vi.mock("../../../src/lib/redis/redis-lock.ts", () => ({
+  acquireLock: vi.fn(),
+  releaseLock: vi.fn(),
 }));
 
-jest.mock("../../../src/lib/index.ts", () => {
-  const original = jest.requireActual("../../../src/lib/index.ts");
+vi.mock("../../../src/lib/index.ts", async () => {
+  const original = await vi.importActual<any>("../../../src/lib/index.ts");
   return {
     ...original,
     asyncHandler: (fn: any) => (req: any, res: any, next: any) => {
@@ -32,18 +33,18 @@ jest.mock("../../../src/lib/index.ts", () => {
   };
 });
 
-jest.mock("../../../src/lib/prisma/db.ts", () => ({
+vi.mock("../../../src/lib/prisma/db.ts", () => ({
   __esModule: true,
   default: {
-    idempotencyKey: { findUnique: jest.fn(), create: jest.fn() },
-    booking: { findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn() },
-    bed: { update: jest.fn() },
-    property: { findUnique: jest.fn() },
+    idempotencyKey: { findUnique: vi.fn(), create: vi.fn() },
+    booking: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
+    bed: { update: vi.fn() },
+    property: { findUnique: vi.fn() },
   },
 }));
 
-jest.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
-  getSecuredClient: jest.fn(),
+vi.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
+  getSecuredClient: vi.fn(),
 }));
 
 describe("Booking Controller", () => {
@@ -53,21 +54,21 @@ describe("Booking Controller", () => {
   let mockSecuredDb: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockSecuredDb = {
-      user: { findUnique: jest.fn() },
+      user: { findUnique: vi.fn() },
       booking: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
       },
-      $transaction: jest.fn(),
+      $transaction: vi.fn(),
     };
 
-    (getSecuredClient as jest.Mock).mockReturnValue(mockSecuredDb);
+    (getSecuredClient as any).mockReturnValue(mockSecuredDb);
 
     mockReq = {
       user: { id: "user-123" },
@@ -75,17 +76,17 @@ describe("Booking Controller", () => {
       body: {},
       params: {},
       query: {},
-      get: jest.fn(),
+      get: vi.fn(),
       originalUrl: "/api/bookings",
       method: "POST",
     };
 
     mockRes = {
-      json: jest.fn(),
-      status: jest.fn().mockReturnThis(),
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
   // TEST: create booking
@@ -102,19 +103,19 @@ describe("Booking Controller", () => {
         endDate: futureEnd,
       };
 
-      (prisma.idempotencyKey.findUnique as jest.Mock).mockResolvedValue(null);
-      (acquireLock as jest.Mock).mockResolvedValue(true);
+      (prisma.idempotencyKey.findUnique as any).mockResolvedValue(null);
+      (acquireLock as any).mockResolvedValue(true);
 
       mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
         const mockTx = {
-          $queryRaw: jest
+          $queryRaw: vi
             .fn()
             .mockResolvedValue([
               { id: "bed-1", roomId: "room-1", pricePerBed: 100 },
             ]),
-          booking: { create: jest.fn().mockResolvedValue({ id: "booking-1" }) },
-          bed: { update: jest.fn() },
-          idempotencyKey: { create: jest.fn() },
+          booking: { create: vi.fn().mockResolvedValue({ id: "booking-1" }) },
+          bed: { update: vi.fn() },
+          idempotencyKey: { create: vi.fn() },
         };
         return callback(mockTx);
       });
@@ -138,7 +139,7 @@ describe("Booking Controller", () => {
 
     test("should return existing response if idempotency key exists", async () => {
       mockReq.get.mockReturnValue("idemp-key-123");
-      (prisma.idempotencyKey.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.idempotencyKey.findUnique as any).mockResolvedValue({
         userId: "user-123",
         responseStatus: 201,
         reponsesBody: { id: "booking-1" },
@@ -165,7 +166,7 @@ describe("Booking Controller", () => {
         bedId: "bed-1",
       });
 
-      (prisma.booking.update as jest.Mock).mockResolvedValue({
+      (prisma.booking.update as any).mockResolvedValue({
         id: "booking-1",
         status: "CANCELLED",
       });
@@ -204,7 +205,7 @@ describe("Booking Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-123",
       });
@@ -226,7 +227,7 @@ describe("Booking Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-DIFFERENT",
       });
@@ -272,7 +273,7 @@ describe("Booking Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-123",
       });
@@ -294,7 +295,7 @@ describe("Booking Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-DIFFERENT",
       });
@@ -315,13 +316,13 @@ describe("Booking Controller", () => {
       mockReq.params = { bookingId: "booking-1" };
       mockReq.body = { startDate, endDate };
 
-      (prisma.booking.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.booking.findUnique as any).mockResolvedValue({
         id: "booking-1",
         guestId: "user-123",
         bedId: "bed-1",
       });
 
-      (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.booking.findMany as any).mockResolvedValue([]);
 
       mockSecuredDb.booking.update.mockResolvedValue({ id: "booking-1" });
 
@@ -338,13 +339,13 @@ describe("Booking Controller", () => {
       mockReq.params = { bookingId: "booking-1" };
       mockReq.body = { startDate, endDate };
 
-      (prisma.booking.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.booking.findUnique as any).mockResolvedValue({
         id: "booking-1",
         guestId: "user-123",
         bedId: "bed-1",
       });
 
-      (prisma.booking.findMany as jest.Mock).mockResolvedValue([
+      (prisma.booking.findMany as any).mockResolvedValue([
         { id: "conflict-booking" },
       ]);
 
