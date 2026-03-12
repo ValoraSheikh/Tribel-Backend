@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import {
   createRoomTemplate,
   getRoomTemplateDetail,
@@ -9,12 +10,12 @@ import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
 
-jest.mock("uuid", () => ({
-  v4: jest.fn(() => "mocked-uuid"),
+vi.mock("uuid", () => ({
+  v4: vi.fn(() => "mocked-uuid"),
 }));
 
-jest.mock("../../../src/lib/index.ts", () => {
-  const original = jest.requireActual("../../../src/lib/index.ts");
+vi.mock("../../../src/lib/index.ts", async () => {
+  const original = await vi.importActual<any>("../../../src/lib/index.ts");
   return {
     ...original,
     asyncHandler: (fn: any) => (req: any, res: any, next: any) => {
@@ -23,17 +24,17 @@ jest.mock("../../../src/lib/index.ts", () => {
   };
 });
 
-jest.mock("../../../src/lib/prisma/db.ts", () => ({
+vi.mock("../../../src/lib/prisma/db.ts", () => ({
   __esModule: true,
   default: {
-    property: { findUnique: jest.fn() },
-    roomTemplate: { findMany: jest.fn(), findUnique: jest.fn() },
-    room: { updateMany: jest.fn() },
+    property: { findUnique: vi.fn() },
+    roomTemplate: { findMany: vi.fn(), findUnique: vi.fn() },
+    room: { updateMany: vi.fn() },
   },
 }));
 
-jest.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
-  getSecuredClient: jest.fn(),
+vi.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
+  getSecuredClient: vi.fn(),
 }));
 
 describe("RoomTemplate Controller", () => {
@@ -43,13 +44,13 @@ describe("RoomTemplate Controller", () => {
   let mockSecuredDb: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockSecuredDb = {
-      user: { findUnique: jest.fn() },
-      $transaction: jest.fn(),
+      user: { findUnique: vi.fn() },
+      $transaction: vi.fn(),
     };
-    (getSecuredClient as jest.Mock).mockReturnValue(mockSecuredDb);
+    (getSecuredClient as any).mockReturnValue(mockSecuredDb);
 
     mockReq = {
       params: { propertyId: "prop-1" },
@@ -64,14 +65,13 @@ describe("RoomTemplate Controller", () => {
     };
 
     mockRes = {
-      json: jest.fn(),
-      status: jest.fn().mockReturnThis(),
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
-  // TEST: create room template
   describe("createRoomTemplate", () => {
     test("should successfully create a room template and return 201", async () => {
       mockSecuredDb.user.findUnique.mockResolvedValue({
@@ -81,16 +81,16 @@ describe("RoomTemplate Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-123",
       });
 
       mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
         const mockTx = {
-          $executeRaw: jest.fn(),
+          $executeRaw: vi.fn(),
           roomTemplate: {
-            create: jest
+            create: vi
               .fn()
               .mockResolvedValue({ id: "rt-1", title: "Standard Room" }),
           },
@@ -129,7 +129,7 @@ describe("RoomTemplate Controller", () => {
 
     test("should throw 404 if property or user not found", async () => {
       mockSecuredDb.user.findUnique.mockResolvedValue(null);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.property.findUnique as any).mockResolvedValue(null);
 
       await createRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -141,7 +141,7 @@ describe("RoomTemplate Controller", () => {
       mockSecuredDb.user.findUnique.mockResolvedValue({
         id: "user-123",
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-DIFFERENT",
       });
@@ -157,7 +157,7 @@ describe("RoomTemplate Controller", () => {
         id: "user-123",
         tenant: null,
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-123",
       });
@@ -169,7 +169,6 @@ describe("RoomTemplate Controller", () => {
     });
   });
 
-  // TEST: get room templates
   describe("getRoomTemplates", () => {
     test("should fetch room templates and return 200", async () => {
       mockReq.params = { propertyId: "prop-1" };
@@ -178,9 +177,7 @@ describe("RoomTemplate Controller", () => {
         { id: "rt-1", title: "Standard Room", bedsPerRoom: 2 },
       ];
 
-      (prisma.roomTemplate.findMany as jest.Mock).mockResolvedValue(
-        fakeTemplates,
-      );
+      (prisma.roomTemplate.findMany as any).mockResolvedValue(fakeTemplates);
 
       await getRoomTemplates(mockReq, mockRes, mockNext);
 
@@ -203,7 +200,6 @@ describe("RoomTemplate Controller", () => {
     });
   });
 
-  // TEST: room template details
   describe("getRoomTemplateDetail", () => {
     test("should fetch room template detail and return 200", async () => {
       mockReq.params = { roomTemplateId: "rt-1" };
@@ -217,7 +213,7 @@ describe("RoomTemplate Controller", () => {
 
       if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
       const fakeDetail = { id: "rt-1", title: "Suite" };
-      mockSecuredDb.roomTemplate.findUnique = jest
+      mockSecuredDb.roomTemplate.findUnique = vi
         .fn()
         .mockResolvedValue(fakeDetail);
 
@@ -272,7 +268,6 @@ describe("RoomTemplate Controller", () => {
     });
   });
 
-  // TEST: update room template
   describe("updateRoomTemplate", () => {
     test("should update room template and return 200", async () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
@@ -285,22 +280,22 @@ describe("RoomTemplate Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
       });
 
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         id: "rt-1",
         propertyId: "prop-1",
       });
 
       if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
       const fakeUpdatedTemplate = { id: "rt-1", title: "Updated Room" };
-      mockSecuredDb.roomTemplate.update = jest
+      mockSecuredDb.roomTemplate.update = vi
         .fn()
         .mockResolvedValue(fakeUpdatedTemplate);
 
-      (prisma.room.updateMany as jest.Mock).mockResolvedValue({ count: 5 });
+      (prisma.room.updateMany as any).mockResolvedValue({ count: 5 });
 
       await updateRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -334,8 +329,8 @@ describe("RoomTemplate Controller", () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
 
       mockSecuredDb.user.findUnique.mockResolvedValue(null);
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({});
+      (prisma.property.findUnique as any).mockResolvedValue(null);
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({});
 
       await updateRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -350,10 +345,10 @@ describe("RoomTemplate Controller", () => {
         id: "user-123",
         tenant: {},
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
       });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-WRONG",
       });
 
@@ -370,10 +365,10 @@ describe("RoomTemplate Controller", () => {
         id: "user-123",
         tenant: null,
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
       });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-1",
       });
 
@@ -390,15 +385,15 @@ describe("RoomTemplate Controller", () => {
         id: "user-123",
         tenant: { id: "t-1" },
       });
-      (prisma.property.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
       });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-1",
       });
 
       if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
-      mockSecuredDb.roomTemplate.update = jest.fn().mockResolvedValue(null);
+      mockSecuredDb.roomTemplate.update = vi.fn().mockResolvedValue(null);
 
       await updateRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -407,7 +402,6 @@ describe("RoomTemplate Controller", () => {
     });
   });
 
-  // TEST: delete room template
   describe("deleteRoomTemplate", () => {
     test("should delete room template and return 200", async () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
@@ -419,7 +413,7 @@ describe("RoomTemplate Controller", () => {
         auth0Id: "auth0|123",
       });
 
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         id: "rt-1",
         property: { id: "prop-1", adminId: "user-123" },
         rooms: [{ id: "room-1" }, { id: "room-2" }],
@@ -428,10 +422,10 @@ describe("RoomTemplate Controller", () => {
       const fakeDeletedTemplate = { id: "rt-1" };
       mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
         const mockTx = {
-          bed: { deleteMany: jest.fn().mockResolvedValue({}) },
-          room: { deleteMany: jest.fn().mockResolvedValue({}) },
+          bed: { deleteMany: vi.fn().mockResolvedValue({}) },
+          room: { deleteMany: vi.fn().mockResolvedValue({}) },
           roomTemplate: {
-            delete: jest.fn().mockResolvedValue(fakeDeletedTemplate),
+            delete: vi.fn().mockResolvedValue(fakeDeletedTemplate),
           },
         };
         return callback(mockTx);
@@ -461,7 +455,7 @@ describe("RoomTemplate Controller", () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
 
       mockSecuredDb.user.findUnique.mockResolvedValue(null);
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue(null);
 
       await deleteRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -473,7 +467,7 @@ describe("RoomTemplate Controller", () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
 
       mockSecuredDb.user.findUnique.mockResolvedValue({ id: "user-123" });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         property: { id: "prop-WRONG", adminId: "user-123" },
       });
 
@@ -487,7 +481,7 @@ describe("RoomTemplate Controller", () => {
       mockReq.params = { roomTemplateId: "rt-1", propertyId: "prop-1" };
 
       mockSecuredDb.user.findUnique.mockResolvedValue({ id: "user-123" });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         property: { id: "prop-1", adminId: "user-DIFFERENT" },
       });
 
@@ -504,7 +498,7 @@ describe("RoomTemplate Controller", () => {
         id: "user-123",
         tenant: null,
       });
-      (prisma.roomTemplate.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         property: { id: "prop-1", adminId: "user-123" },
       });
 

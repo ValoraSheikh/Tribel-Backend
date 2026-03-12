@@ -42,16 +42,14 @@ export const createBooking = asyncHandler(async (req, res) => {
       throw new ApiError("Start date must be bigger than end date", 400);
     }
 
-    const securedDB = getSecuredClient({
-      userId: req.user.id,
-      tenantId: "",
-      role: "",
-      auth0Id: req.oidc.user?.sub,
-    });
-
-    const bookingCreated = await securedDB.$transaction(
+    const bookingCreated = await prisma.$transaction(
       async (tx) => {
         if (!req.user?.id) throw new ApiError("User ID is missing", 401);
+
+        await tx.$executeRaw`
+        SELECT set_config('app.current_userId', ${req.user.id}::text, true),
+          set_config('app.current_user_auth0_id', ${req.oidc.user?.sub}::text, true)
+        `;
 
         const freeBeds = await tx.$queryRaw<
           { id: string; roomId: string; pricePerBed: number }[]
@@ -68,7 +66,7 @@ export const createBooking = asyncHandler(async (req, res) => {
                   AND bk."endDate" > ${startDate}
               )
               LIMIT 1
-              FOR UPDATE SKIP LOCKED;
+              FOR NO KEY UPDATE OF b SKIP LOCKED;
         `;
 
         if (freeBeds.length === 0) {
@@ -92,28 +90,27 @@ export const createBooking = asyncHandler(async (req, res) => {
           );
         }
 
-        const [booking] = await Promise.all([
-          tx.booking.create({
-            data: {
-              propertyId: propertyId,
-              roomId: chooseBed?.roomId,
-              bedId: chooseBed.id,
-              guestId: req.user?.id,
-              totalPrice: chooseBed?.pricePerBed,
-              startDate,
-              endDate,
-              status: "CONFIRMED",
-            },
-          }),
-          tx.bed.update({
-            where: {
-              id: chooseBed.id,
-            },
-            data: {
-              userId: req.user.id,
-            },
-          }),
-        ]);
+        const booking = await tx.booking.create({
+          data: {
+            propertyId: propertyId,
+            roomId: chooseBed?.roomId,
+            bedId: chooseBed.id,
+            guestId: req.user?.id,
+            totalPrice: chooseBed?.pricePerBed,
+            startDate,
+            endDate,
+            status: "CONFIRMED",
+          },
+        });
+
+        await tx.bed.update({
+          where: {
+            id: chooseBed.id,
+          },
+          data: {
+            userId: req.user.id,
+          },
+        });
 
         await tx.idempotencyKey.create({
           data: {
@@ -131,7 +128,7 @@ export const createBooking = asyncHandler(async (req, res) => {
         };
       },
       {
-        maxWait: 5000,
+        maxWait: 10000,
         timeout: 10000,
       },
     );

@@ -27,7 +27,7 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
 
   if (numberOfRooms > MAX_ROOMS || bedsPerRoom > MAX_BEDS) {
     throw new ApiError(
-      `Limits: Number of rooms can't be more than ${MAX_ROOMS}, 
+      `Limits: Number of rooms can't be more than ${MAX_ROOMS},
       Number of beds per room can't be more than ${MAX_BEDS}`,
       400,
     );
@@ -61,14 +61,7 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
   const tenant = user.tenant;
   if (!tenant) throw new ApiError("Tenant not found", 404);
 
-  const withRLS = getSecuredClient({
-    userId: user?.id,
-    auth0Id: user?.auth0Id,
-    role: user?.role,
-    tenantId: tenant.id,
-  });
-
-  const roomTemplate = await withRLS.$transaction(
+  const roomTemplate = await prisma.$transaction(
     async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true);`;
       await tx.$executeRaw`SELECT set_config('app.current_userId', ${user.id}, true);`;
@@ -351,28 +344,29 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
     auth0Id: req.oidc.user?.sub,
   });
 
-  const updateRoomTemplate = await withRLS.roomTemplate.update({
-    where: {
-      id: roomTemplateId,
-    },
-    data: {
-      title: title,
-      description: description,
-      pricePerBed: pricePerBed,
-      type: type,
-      amenities: amenities,
-      image: image,
-    },
-  });
-
-  await prisma.room.updateMany({
-    where: {
-      roomTemplateId,
-    },
-    data: {
-      pricePerBed,
-    },
-  });
+  const [updateRoomTemplate] = await Promise.all([
+    withRLS.roomTemplate.update({
+      where: {
+        id: roomTemplateId,
+      },
+      data: {
+        title: title,
+        description: description,
+        pricePerBed: pricePerBed,
+        type: type,
+        amenities: amenities,
+        image: image,
+      },
+    }),
+    prisma.room.updateMany({
+      where: {
+        roomTemplateId,
+      },
+      data: {
+        pricePerBed,
+      },
+    }),
+  ]);
 
   if (!updateRoomTemplate) {
     throw new ApiError("Room Template not found", 404);
@@ -453,17 +447,17 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
 
   const deletedTemplate = await withRLS.$transaction(
     async (tx) => {
-      await Promise.all([
+      await Promise.all(
         roomTemplate.rooms.map((room: { id: string }) =>
           tx.bed.deleteMany({
             where: { roomId: room.id },
           }),
         ),
+      );
 
-        await tx.room.deleteMany({
-          where: { roomTemplateId },
-        }),
-      ]);
+      await tx.room.deleteMany({
+        where: { roomTemplateId },
+      });
 
       return tx.roomTemplate.delete({
         where: { id: roomTemplateId },

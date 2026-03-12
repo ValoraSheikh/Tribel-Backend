@@ -12,12 +12,12 @@ export interface UserDetail {
 
 export const user = async (sub: string) => {
   const secureDB = getSecuredClient({
-    role: "Super_Admin",
+    role: "",
     tenantId: "",
     userId: "",
-    auth0Id: sub
-  })
-  
+    auth0Id: sub,
+  });
+
   const user = await secureDB.user.findUnique({
     where: {
       auth0Id: sub,
@@ -40,9 +40,9 @@ export const createUser = async (user: UserDetail) => {
     role: "",
     tenantId: "",
     userId: "",
-    auth0Id: user.sub
-  })
-  
+    auth0Id: user.sub,
+  });
+
   const createUser = await secureDB.user.create({
     data: {
       auth0Id: user.sub,

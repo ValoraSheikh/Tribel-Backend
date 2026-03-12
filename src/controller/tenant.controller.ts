@@ -8,14 +8,13 @@ export const createTenant = asyncHandler(async (req, res) => {
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
   }
-  
+
   const securedDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
     role: "",
-    auth0Id: req.oidc.user?.sub
-  })
-
+    auth0Id: req.oidc.user?.sub,
+  });
 
   const user = await securedDB.user.findUnique({
     where: {
@@ -23,11 +22,15 @@ export const createTenant = asyncHandler(async (req, res) => {
     },
     select: {
       tenant: true,
-    }
+    },
   });
 
-  if (!user || user.tenant != null) {
-    throw new ApiError("User already have tenant", 401);
+  if (!user) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (user.tenant != null) {
+    throw new ApiError("User already has a tenant", 401);
   }
 
   await securedDB.user.update({
@@ -60,36 +63,35 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
   if (!req.user.id) {
     throw new ApiError("User ID is required", 400);
   }
-  
+
   const securedDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
     role: "",
-    auth0Id: req.oidc.user?.sub
-  })
-
+    auth0Id: req.oidc.user?.sub,
+  });
 
   const user = await securedDB.user.findUnique({
     where: {
       id: req.user.id,
     },
     include: {
-      tenant: true
-    }
+      tenant: true,
+    },
   });
 
   if (!user) {
     throw new ApiError("User not found", 404);
   }
-  
+
   const tenantId = user.tenant?.id || "";
-  
+
   const securedDB1 = getSecuredClient({
     userId: req.user.id,
     tenantId: tenantId,
     role: user.role,
-    auth0Id: req.oidc.user?.sub
-  })
+    auth0Id: req.oidc.user?.sub,
+  });
 
   const tenantDetail = await securedDB1.tenant.findUnique({
     where: {
@@ -155,7 +157,7 @@ export const getAllTenants = asyncHandler(async (req, res) => {
     userId: user.id,
     tenantId: "",
     role: user.role,
-    auth0Id: req.oidc.user?.sub
+    auth0Id: req.oidc.user?.sub,
   });
 
   const [tenants, totalTenants] = await Promise.all([
@@ -223,7 +225,7 @@ export const updateTenant = asyncHandler(async (req, res) => {
     userId: req.user.id,
     tenantId: tenant.id,
     role: req.user.role,
-    auth0Id: req.oidc.user?.sub
+    auth0Id: req.oidc.user?.sub,
   });
 
   const data = await securedDB.tenant.update({

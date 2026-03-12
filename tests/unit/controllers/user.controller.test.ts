@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from "vitest";
 import {
   deleteUser,
   loginUser,
@@ -7,16 +8,18 @@ import {
 import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import { ApiError } from "../../../src/lib";
 
-jest.mock("../../../src/lib/prisma/db.ts", () => ({
+vi.mock("../../../src/lib/prisma/db.ts", () => ({
   prisma: {},
 }));
 
-jest.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
-  getSecuredClient: jest.fn(),
+vi.mock("../../../src/lib/prisma/prisma-rls.ts", () => ({
+  getSecuredClient: vi.fn(),
 }));
 
-jest.mock("../../../src/lib/index.ts", () => {
-  const originalModule = jest.requireActual("../../../src/lib/index.ts");
+vi.mock("../../../src/lib/index.ts", async () => {
+  const originalModule = await vi.importActual<any>(
+    "../../../src/lib/index.ts",
+  );
   return {
     ...originalModule,
     asyncHandler: (fn: any) => (req: any, res: any, next: any) => {
@@ -32,22 +35,22 @@ describe("User Controller Tests", () => {
   let mockDb: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockDb = {
       user: {
-        delete: jest.fn(),
-        upsert: jest.fn(),
-        update: jest.fn(),
+        delete: vi.fn(),
+        upsert: vi.fn(),
+        update: vi.fn(),
       },
     };
 
-    (getSecuredClient as jest.Mock).mockReturnValue(mockDb);
+    (getSecuredClient as any).mockReturnValue(mockDb);
 
     mockReq = {
       oidc: {
-        isAuthenticated: jest.fn().mockReturnValue(true),
-        logout: jest.fn(),
+        isAuthenticated: vi.fn().mockReturnValue(true),
+        logout: vi.fn(),
         user: {
           sub: "auth0|12345",
           email: "alex@test.com",
@@ -62,17 +65,14 @@ describe("User Controller Tests", () => {
     };
 
     mockRes = {
-      json: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-      oidc: { logout: jest.fn() },
+      json: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      oidc: { logout: vi.fn() },
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
-  // =================================================================
-  // TEST SUITE 1: DELETE USER
-  // =================================================================
   describe("deleteUser", () => {
     test("should delete the user and return 200 success", async () => {
       const fakeDeletedUser = { id: "db-user-id-99", name: "Deleted Guy" };
@@ -99,9 +99,6 @@ describe("User Controller Tests", () => {
     });
   });
 
-  // =================================================================
-  // TEST SUITE 2: LOGIN USER
-  // =================================================================
   describe("loginUser", () => {
     test("should upsert user and return 200 success", async () => {
       const fakeUser = {
@@ -129,22 +126,17 @@ describe("User Controller Tests", () => {
     });
 
     test("should throw 401 if user is NOT authenticated", async () => {
-      // Simulate logged out
       mockReq.oidc.isAuthenticated.mockReturnValue(false);
       mockReq.oidc.user = undefined;
 
       await loginUser(mockReq, mockRes, mockNext);
 
-      // Check for ApiError
       expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
       const error = mockNext.mock.calls[0][0];
       expect(error.statusCode).toBe(401);
     });
   });
 
-  // =================================================================
-  // TEST SUITE 3: LOGOUT
-  // =================================================================
   describe("logout", () => {
     test("should call oidc.logout and return success", async () => {
       await logout(mockReq, mockRes, mockNext);
@@ -156,9 +148,6 @@ describe("User Controller Tests", () => {
     });
   });
 
-  // =================================================================
-  // TEST SUITE 4: UPDATE USER PROFILE
-  // =================================================================
   describe("updateUserProfile", () => {
     test("should update user and return 200 success", async () => {
       mockReq.body = {
