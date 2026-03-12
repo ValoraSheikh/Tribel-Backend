@@ -109,7 +109,7 @@ describe("Tenant Controller", () => {
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
       expect(mockNext.mock.calls[0][0].message).toBe(
-        "User already have tenant",
+        "User already has a tenant",
       );
       expect(mockNext.mock.calls[0][0].statusCode).toBe(401);
     });
