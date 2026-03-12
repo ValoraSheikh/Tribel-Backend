@@ -12,7 +12,7 @@ export interface UserDetail {
 
 export const user = async (sub: string) => {
   const secureDB = getSecuredClient({
-    role: "Super_Admin",
+    role: "",
     tenantId: "",
     userId: "",
     auth0Id: sub,
