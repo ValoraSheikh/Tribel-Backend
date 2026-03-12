@@ -40,6 +40,7 @@ vi.mock("../../../src/lib/prisma/db.ts", () => ({
     booking: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     bed: { update: vi.fn() },
     property: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -65,7 +66,6 @@ describe("Booking Controller", () => {
         findMany: vi.fn(),
         count: vi.fn(),
       },
-      $transaction: vi.fn(),
     };
 
     (getSecuredClient as any).mockReturnValue(mockSecuredDb);
@@ -106,8 +106,9 @@ describe("Booking Controller", () => {
       (prisma.idempotencyKey.findUnique as any).mockResolvedValue(null);
       (acquireLock as any).mockResolvedValue(true);
 
-      mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
+      (prisma.$transaction as any).mockImplementation(async (callback: any) => {
         const mockTx = {
+          $executeRaw: vi.fn().mockResolvedValue([]),
           $queryRaw: vi
             .fn()
             .mockResolvedValue([
@@ -123,7 +124,8 @@ describe("Booking Controller", () => {
       await createBooking(mockReq, mockRes, mockNext);
 
       expect(acquireLock).toHaveBeenCalled();
-      expect(mockSecuredDb.$transaction).toHaveBeenCalled();
+
+      expect(prisma.$transaction).toHaveBeenCalled();
       expect(releaseLock).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(201);
     });
