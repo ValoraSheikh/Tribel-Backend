@@ -11,7 +11,7 @@ export const lockScript = `
 
 export async function acquireLock( key: string, keyValue: string, ttl: number,) {
   const result = await redisClient.set(key, keyValue, "PX", ttl, "NX");
-  
+
   return result === "OK"
 }
 

@@ -12,6 +12,10 @@ import {
   updateRoomTemplateValidation,
 } from "../middleware/validation.middleware.ts";
 import { restrictTo } from "../lib/index.ts";
+import {
+  publicGetRateLimit,
+  roomTemplateRateLimit,
+} from "../middleware/rate-limit.middleware.ts";
 const { requiresAuth } = pkg;
 
 const router = Router({ mergeParams: true });
@@ -19,14 +23,16 @@ const router = Router({ mergeParams: true });
 router.post(
   "/",
   requiresAuth(),
+  roomTemplateRateLimit,
   restrictTo("Admin", "Super_Admin"),
   roomTemplateValidation,
   createRoomTemplate,
 );
-router.get("/", getRoomTemplates);
+router.get("/", publicGetRateLimit, getRoomTemplates);
 router.patch(
   "/:roomTemplateId",
   requiresAuth(),
+  roomTemplateRateLimit,
   restrictTo("Admin", "Super_Admin"),
   updateRoomTemplateValidation,
   updateRoomTemplate,
@@ -34,9 +40,10 @@ router.patch(
 router.delete(
   "/:roomTemplateId",
   requiresAuth(),
+  roomTemplateRateLimit,
   restrictTo("Admin", "Super_Admin"),
   deleteRoomTemplate,
 );
-router.get("/:roomTemplateId", getRoomTemplateDetail)
+router.get("/:roomTemplateId", publicGetRateLimit, getRoomTemplateDetail);
 
 export default router;

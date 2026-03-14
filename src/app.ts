@@ -5,7 +5,8 @@ import helmet from "helmet";
 import hpp from "hpp";
 import morgan from "morgan";
 import dotenv from "dotenv";
-import pkg from "express-openid-connect";
+import { createUser, user, type UserDetail } from "./lib/user.ts";
+import { loginRateLimit } from "./middleware/rate-limit.middleware.ts";
 import { auth0middleware } from "./lib/auth/auth0-utils.ts";
 
 import userRouter from "./routes/user.route.ts";
@@ -13,12 +14,11 @@ import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
 import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 import bookingRouter from "./routes/booking.route.ts";
-import { createUser, user, type UserDetail } from "./lib/user.ts";
 
-const { requiresAuth } = pkg;
 const app = express();
 dotenv.config({ path: "./.env" });
 
+app.set("trust proxy", true)
 app.use(auth0middleware);
 app.use(
   cors({
@@ -75,7 +75,7 @@ app.get("/profile", (req: Request, res: Response) => {
   });
 });
 
-app.use("/auth/login", (_req, res, _next) => {
+app.use("/auth/login", loginRateLimit, (_req, res, _next) => {
   res.oidc.login({
     returnTo: "/auth/bridge",
   });
@@ -107,7 +107,7 @@ app.get("/auth/bridge", async (req, res, next) => {
   }
 });
 
-app.use(async (req, res, next) => {
+app.use(async (req, _res, next) => {
   try {
     if (req.oidc?.user) {
       const auth0User = req.oidc.user as UserDetail;
