@@ -14,11 +14,13 @@ import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
 import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 import bookingRouter from "./routes/booking.route.ts";
+import client from "./lib/redis/redis-cache.ts";
+import type { AuthUser } from "./controller/user.controller.ts";
 
 const app = express();
 dotenv.config({ path: "./.env" });
 
-app.set("trust proxy", true)
+app.set("trust proxy", true);
 app.use(auth0middleware);
 app.use(
   cors({
@@ -42,14 +44,18 @@ app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
 });
 
-app.get("/logout", (req, res, next) => {
+app.get("/logout", async (req, res, next) => {
   try {
     const isAuthenticated = req.oidc?.isAuthenticated() ?? false;
 
     if (!isAuthenticated || !req.oidc?.user) {
-      res.redirect("http://localhost:3001");
-      return;
+      return res.redirect("http://localhost:3001");
     }
+
+    const authUser = req.oidc.user as AuthUser;
+
+    await client.del(`user:${authUser.sub}`);
+    await client.del(`session:${authUser.sub}`);
 
     res.oidc.logout({
       returnTo: "http://localhost:3001",
@@ -88,6 +94,13 @@ app.get("/auth/bridge", async (req, res, next) => {
     }
 
     const auth0User = req.oidc.user as UserDetail;
+
+    const cacheUser = await client.get(`session:${auth0User.sub}`);
+    if (cacheUser) {
+      req.user = JSON.parse(cacheUser);
+      return res.redirect("http://localhost:3001/");
+    }
+
     let found = await user(auth0User.sub);
     if (!found) {
       found = await createUser(auth0User);
@@ -100,6 +113,13 @@ app.get("/auth/bridge", async (req, res, next) => {
       name: found.firstName,
     };
 
+    await client.set(
+      `session:${auth0User.sub}`,
+      JSON.stringify(req.user),
+      "EX",
+      3600,
+    );
+
     // FINAL STEP: send user back to frontend app
     return res.redirect("http://localhost:3001/");
   } catch (err) {
@@ -111,6 +131,12 @@ app.use(async (req, _res, next) => {
   try {
     if (req.oidc?.user) {
       const auth0User = req.oidc.user as UserDetail;
+      const cacheUser = await client.get(`session:${auth0User.sub}`);
+      if (cacheUser) {
+        req.user = JSON.parse(cacheUser);
+        return next();
+      }
+
       let found = await user(auth0User.sub);
       if (!found) {
         found = await createUser(auth0User);
@@ -121,8 +147,15 @@ app.use(async (req, _res, next) => {
         email: found.email,
         name: found.firstName,
       };
+
+      await client.set(
+        `session:${auth0User.sub}`,
+        JSON.stringify(req.user),
+        "EX",
+        3600,
+      );
     }
-    // res.redirect("http://localhost:3001");
+
     next();
   } catch (err) {
     next(err);
