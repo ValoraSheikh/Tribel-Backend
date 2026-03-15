@@ -1,6 +1,7 @@
 import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import client from "../lib/redis/redis-cache.ts";
 
 export const createProperty = asyncHandler(async (req, res) => {
   const {
@@ -25,38 +26,37 @@ export const createProperty = asyncHandler(async (req, res) => {
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
   }
-  
+
   const secureDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
     role: "",
-    auth0Id: req.oidc.user?.sub
-  })
-  
+    auth0Id: req.oidc.user?.sub,
+  });
+
   const user = await secureDB.user.findUnique({
     where: {
-      id: req.user.id
+      id: req.user.id,
     },
     select: {
       id: true,
       tenant: true,
       role: true,
-      
-    }
-  }); 
-  
+    },
+  });
+
   const tenant = user?.tenant;
 
   if (!tenant) {
     throw new ApiError("Tenant not found", 404);
   }
-  
+
   const withRLS = getSecuredClient({
     userId: req.user.id,
     tenantId: tenant.id,
     role: user.role,
-    auth0Id: req.oidc.user?.sub
-  })
+    auth0Id: req.oidc.user?.sub,
+  });
 
   const property = await withRLS.property.create({
     data: {
@@ -79,7 +79,57 @@ export const createProperty = asyncHandler(async (req, res) => {
       description: description,
       amenities: amenities,
     },
+    select: {
+      id: true,
+      adminId: true,
+      title: true,
+      type: true,
+      address: true,
+      gstin: true,
+      city: true,
+      state: true,
+      country: true,
+      postal_code: true,
+      contact_email: true,
+      contact_phone: true,
+      starRating: true,
+      latitude: true,
+      longitude: true,
+      updatedAt: true,
+      createdAt: true,
+      description: true,
+      images: true,
+      amenities: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+          description: true,
+          profile: true,
+          currency: true,
+          timezone: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      },
+    },
   });
+
+  await client.set(
+    `property:${property.id}`,
+    JSON.stringify(property),
+    "EX",
+    3600,
+  );
 
   return res
     .status(201)
@@ -143,7 +193,6 @@ export const updateProperty = asyncHandler(async (req, res) => {
   if (propertyOwner?.tenantId !== tenant.id) {
     throw new ApiError("Forbidden", 403);
   }
-  
 
   if (!propertyOwner?.tenantId) {
     throw new ApiError("Forbidden", 403);
@@ -153,7 +202,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
     userId: req.user.id,
     tenantId: tenant?.id,
     role: user.role,
-    auth0Id: user.auth0Id
+    auth0Id: user.auth0Id,
   });
 
   const property = await securedDB.property.update({
@@ -182,6 +231,13 @@ export const updateProperty = asyncHandler(async (req, res) => {
   if (!property) {
     throw new ApiError("Property not found", 404);
   }
+
+  await client.set(
+    `property:${propertyId}`,
+    JSON.stringify(property),
+    "EX",
+    3600,
+  );
 
   return res
     .status(200)
@@ -232,7 +288,7 @@ export const deleteProperty = asyncHandler(async (req, res) => {
     userId: req.user.id,
     tenantId: tenant?.id,
     role: user.role,
-    auth0Id: user.auth0Id
+    auth0Id: user.auth0Id,
   });
 
   const deleteProperty = await securedDB.property.delete({
@@ -244,6 +300,8 @@ export const deleteProperty = asyncHandler(async (req, res) => {
   if (!deleteProperty) {
     throw new ApiError("Property not found", 404);
   }
+
+  await client.del(`property:${propertyId}`);
 
   return res
     .status(200)
@@ -261,13 +319,13 @@ export const getAdminProperties = asyncHandler(async (req, res) => {
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
   }
-  
+
   const secureDB = getSecuredClient({
     userId: req.user.id,
     role: "",
     tenantId: "",
-    auth0Id: req.oidc.user?.sub
-  })
+    auth0Id: req.oidc.user?.sub,
+  });
 
   const user = await secureDB.user.findUnique({
     where: {
@@ -290,7 +348,7 @@ export const getAdminProperties = asyncHandler(async (req, res) => {
     userId: user.id,
     tenantId: tenant?.id,
     role: user.role,
-    auth0Id: user.auth0Id
+    auth0Id: user.auth0Id,
   });
 
   const [properties, totalProperties] = await Promise.all([
@@ -358,13 +416,16 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
   }
-  
-  const secureDB = getSecuredClient({
-    userId: req.user.id,
-    tenantId: "",
-    auth0Id: req.oidc.user?.sub,
-    role: ""
-  })
+
+  const propertyCache = await client.get(`property:${propertyId}`);
+
+  if (propertyCache) {
+    const parsedData = JSON.parse(propertyCache);
+
+    return res.json(
+      new ApiResponse(parsedData, "Property fetched Successfully", 200),
+    );
+  }
 
   const propertyDetail = await prisma.property.findUnique({
     where: {
@@ -418,6 +479,13 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
   if (!propertyDetail) {
     throw new ApiError("No property found with this ID", 404);
   }
+
+  await client.set(
+    `property:${propertyId}`,
+    JSON.stringify(propertyDetail),
+    "EX",
+    3600,
+  );
 
   return res
     .status(200)
