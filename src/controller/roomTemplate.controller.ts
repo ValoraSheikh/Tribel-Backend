@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import client from "../lib/redis/redis-cache.ts";
 
 type BedPayload = Promise<{ roomId: string; bedNo: number }[]>;
 
@@ -80,6 +81,53 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
           amenities: amenities ?? [],
           image: image ?? [],
         },
+        select: {
+          id: true,
+          title: true,
+          image: true,
+          description: true,
+          amenities: true,
+          bedsPerRoom: true,
+          numberOfRooms: true,
+          pricePerBed: true,
+          createdAt: true,
+          updatedAt: true,
+          type: true,
+          deletedAt: true,
+          propertyId: true,
+          rooms: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              pricePerBed: true,
+              roomTemplateId: true,
+              bedCount: true,
+              propertyId: true,
+              createdAt: true,
+              updatedAt: true,
+              beds: {
+                select: {
+                  id: true,
+                  roomId: true,
+                  bedNo: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  user: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      avatar: true,
+                      email: true,
+                      phoneNo: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       const roomTemplateId = createdTemplate.id;
@@ -127,6 +175,9 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
     },
   );
 
+  await client.del(`roomTemplates:${propertyId}`);
+  await client.del(`roomTemplateDetail:${roomTemplate.id}`);
+
   return res
     .status(201)
     .json(
@@ -139,6 +190,19 @@ export const getRoomTemplates = asyncHandler(async (req, res) => {
 
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
+  }
+
+  const roomTemplateCache = await client.get(`roomTemplates:${propertyId}`);
+  if (roomTemplateCache) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(roomTemplateCache),
+          "Room Templates fetched successfully",
+          200,
+        ),
+      );
   }
 
   const roomTemplates = await prisma.roomTemplate.findMany({
@@ -157,16 +221,15 @@ export const getRoomTemplates = asyncHandler(async (req, res) => {
       image: true,
       createdAt: true,
       updatedAt: true,
-      rooms: {
-        select: {
-          bedCount: true,
-          description: true,
-          pricePerBed: true,
-          title: true,
-        },
-      },
     },
   });
+
+  await client.set(
+    `roomTemplates:${propertyId}`,
+    JSON.stringify(roomTemplates),
+    "EX",
+    3600,
+  );
 
   return res
     .status(200)
@@ -181,6 +244,22 @@ export const getRoomTemplates = asyncHandler(async (req, res) => {
 
 export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
   const { roomTemplateId } = req.params;
+
+  const roomTemplateDetailCache = await client.get(
+    `roomTemplateDetail:${roomTemplateId}`,
+  );
+
+  if (roomTemplateDetailCache) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(roomTemplateDetailCache),
+          "Room template details fetched successfully",
+          200,
+        ),
+      );
+  }
 
   const secureDB = getSecuredClient({
     userId: req.user.id,
@@ -271,6 +350,13 @@ export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
     },
   });
 
+  await client.set(
+    `roomTemplateDetail:${roomTemplateId}`,
+    JSON.stringify(roomTemplateDetail),
+    "EX",
+    3600,
+  );
+
   return res
     .status(200)
     .json(
@@ -325,9 +411,9 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
     throw new ApiError("Property and User not found", 404);
   }
 
-  // if (user?.id !== property?.adminId) {
-  //   throw new ApiError("Forbidden", 403);
-  // }
+  if (user?.id !== property?.adminId) {
+    throw new ApiError("Forbidden", 403);
+  }
 
   if (roomTemplate?.propertyId !== propertyId) {
     throw new ApiError("Forbidden", 403);
@@ -357,6 +443,27 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
         amenities: amenities,
         image: image,
       },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        bedsPerRoom: true,
+        numberOfRooms: true,
+        pricePerBed: true,
+        type: true,
+        amenities: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        rooms: {
+          select: {
+            bedCount: true,
+            description: true,
+            pricePerBed: true,
+            title: true,
+          },
+        },
+      },
     }),
     prisma.room.updateMany({
       where: {
@@ -371,6 +478,9 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
   if (!updateRoomTemplate) {
     throw new ApiError("Room Template not found", 404);
   }
+
+  await client.del(`roomTemplates:${propertyId}`);
+  await client.del(`roomTemplateDetail:${roomTemplateId}`);
 
   return res
     .status(200)
@@ -438,15 +548,15 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
 
   if (!tenant) throw new ApiError("Tenant not found", 404);
 
-  const withRLS = getSecuredClient({
-    userId: user?.id,
-    auth0Id: user?.auth0Id,
-    role: user?.role,
-    tenantId: tenant.id,
-  });
-
-  const deletedTemplate = await withRLS.$transaction(
+  const deletedTemplate = await prisma.$transaction(
     async (tx) => {
+      await tx.$executeRaw`
+      SELECT set_config('app.current_userId', ${req.user.id}::text, true),
+        set_config('app.current_user_auth0_id', ${req.oidc.user?.sub}::text, true),
+        set_config('app.current_userId', ${user?.id}::text, true),
+        set_config('app.current_user_auth0_id', ${user?.auth0Id}::text, true)
+      `;
+
       await Promise.all(
         roomTemplate.rooms.map((room: { id: string }) =>
           tx.bed.deleteMany({
@@ -468,6 +578,9 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
       isolationLevel: "ReadUncommitted",
     },
   );
+
+  await client.del(`roomTemplates:${propertyId}`);
+  await client.del(`roomTemplateDetail:${roomTemplateId}`);
 
   return res
     .status(200)
