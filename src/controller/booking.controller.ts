@@ -3,6 +3,7 @@ import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { v4 as uuidv4 } from "uuid";
 import { acquireLock, releaseLock } from "../lib/redis/redis-lock.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import client from "../lib/redis/redis-cache.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
   const { propertyId, roomTemplateId, startDate, endDate } = req.body;
@@ -404,6 +405,19 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
   if (!user || !property)
     throw new ApiError("No user and property found with this ID", 404);
 
+  const AdminBookingsCache = await client.get(`AdminBookings:${propertyId}`);
+  if (AdminBookingsCache) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(AdminBookingsCache),
+          "Bookings fetched successfully",
+          200,
+        ),
+      );
+  }
+
   const tenant = user.tenant;
 
   if (!tenant) {
@@ -484,6 +498,18 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse([], "No bookings found", 404));
   }
 
+  await client.set(
+    `AdminBookings:${propertyId}`,
+    JSON.stringify({
+      bookings: bookings,
+      page,
+      totalBookings: totalBookings,
+      totalPages: Math.ceil(totalBookings / limit),
+    }),
+    "EX",
+    3600,
+  );
+
   return res.status(200).json(
     new ApiResponse(
       {
@@ -508,6 +534,19 @@ export const updateUserBooking = asyncHandler(async (req, res) => {
 
   if (!req.user?.id) {
     throw new ApiError("User ID is required", 401);
+  }
+
+  const UserBookingCache = await client.get(`UserBookings:${bookingId}`);
+  if (UserBookingCache) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(UserBookingCache),
+          "Booking updated successfully",
+          200,
+        ),
+      );
   }
 
   if (!bookingId) {
@@ -559,7 +598,56 @@ export const updateUserBooking = asyncHandler(async (req, res) => {
       startDate: startDate,
       endDate: endDate,
     },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      totalPrice: true,
+      roomId: true,
+      bedId: true,
+      status: true,
+      guest: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
+      bed: {
+        select: {
+          id: true,
+          bedNo: true,
+          roomId: true,
+        },
+      },
+      room: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      createdAt: true,
+      property: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          state: true,
+          city: true,
+          images: true,
+        },
+      },
+    },
   });
+
+  await client.set(
+    `UserBooking:${bookingId}`,
+    JSON.stringify(updateBooking),
+    "EX",
+    3600,
+  );
 
   return res
     .status(200)
