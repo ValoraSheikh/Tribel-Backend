@@ -134,6 +134,8 @@ export const createBooking = asyncHandler(async (req, res) => {
       },
     );
 
+    await client.del(`roomTemplateDetail:${roomTemplateId}`);
+
     return res
       .status(201)
       .json(
