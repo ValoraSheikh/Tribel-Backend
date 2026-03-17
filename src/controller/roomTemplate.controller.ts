@@ -530,6 +530,11 @@ export const deleteRoomTemplate = asyncHandler(async (req, res) => {
         },
       },
     }),
+    secureDB.booking.deleteMany({
+      where: {
+        propertyId: propertyId,
+      },
+    }),
   ]);
 
   if (!user || !roomTemplate) {
