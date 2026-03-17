@@ -1,6 +1,7 @@
 import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import client from "../lib/redis/redis-cache.ts";
 
 export const createTenant = asyncHandler(async (req, res) => {
   const { name, slug, description, profile, currency, timezone } = req.body;
@@ -21,6 +22,11 @@ export const createTenant = asyncHandler(async (req, res) => {
       id: req.user.id,
     },
     select: {
+      id: true,
+      role: true,
+      email: true,
+      firstName: true,
+      auth0Id: true,
       tenant: true,
     },
   });
@@ -33,7 +39,7 @@ export const createTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User already has a tenant", 401);
   }
 
-  await securedDB.user.update({
+  const userData = await securedDB.user.update({
     where: {
       id: req.user.id,
     },
@@ -41,6 +47,27 @@ export const createTenant = asyncHandler(async (req, res) => {
       role: "Admin",
     },
   });
+
+  await client.set(
+    `user:${user.auth0Id}`,
+    JSON.stringify(userData),
+    "EX",
+    3600,
+  );
+
+  req.user = {
+    id: userData.id,
+    role: userData.role,
+    email: userData.email,
+    name: userData.firstName,
+  };
+
+  await client.set(
+    `session:${user.auth0Id}`,
+    JSON.stringify(req.user),
+    "EX",
+    3600,
+  );
 
   const tenant = await prisma.tenant.create({
     data: {
@@ -52,7 +79,33 @@ export const createTenant = asyncHandler(async (req, res) => {
       currency: currency,
       timezone: timezone,
     },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      profile: true,
+      timezone: true,
+      createdAt: true,
+      updatedAt: true,
+      currency: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          auth0Id: true,
+          avatar: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
+    },
   });
+
+  await client.set(`tenant:${tenant.id}`, JSON.stringify(tenant), "EX", 3600);
 
   return res
     .status(201)
@@ -62,6 +115,25 @@ export const createTenant = asyncHandler(async (req, res) => {
 export const getTenantDetail = asyncHandler(async (req, res) => {
   if (!req.user.id) {
     throw new ApiError("User ID is required", 400);
+  }
+
+  const userCache = await client.get(`user:${req.oidc.user?.sub}`);
+
+  if (userCache) {
+    const userData = JSON.parse(userCache);
+    const tenantId = userData?.tenant.id;
+    const tenantCache = await client.get(`tenant:${tenantId}`);
+    if (tenantCache) {
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            JSON.parse(tenantCache),
+            "Tenant Fetched successfully",
+            200,
+          ),
+        );
+    }
   }
 
   const securedDB = getSecuredClient({
@@ -85,6 +157,19 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
   }
 
   const tenantId = user.tenant?.id || "";
+
+  const tenantCache = await client.get(`tenant:${tenantId}`);
+  if (tenantCache) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(tenantCache),
+          "Tenant Fetched successfully",
+          200,
+        ),
+      );
+  }
 
   const securedDB1 = getSecuredClient({
     userId: req.user.id,
@@ -126,6 +211,13 @@ export const getTenantDetail = asyncHandler(async (req, res) => {
   if (!tenantDetail) {
     throw new ApiError("No tenant found with this ID", 404);
   }
+
+  await client.set(
+    `tenant:${tenantDetail.id}`,
+    JSON.stringify(tenantDetail),
+    "EX",
+    3600,
+  );
 
   return res
     .status(200)
@@ -238,6 +330,8 @@ export const updateTenant = asyncHandler(async (req, res) => {
       timezone: timezone,
     },
   });
+
+  await client.set(`tenant:${tenant.id}`, JSON.stringify(data), "EX", 3600);
 
   return res
     .status(200)

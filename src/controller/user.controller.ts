@@ -1,7 +1,9 @@
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import client from "../lib/redis/redis-cache.ts";
+import redisClient from "../lib/redis/redis.ts";
 
-type AuthUser = {
+export type AuthUser = {
   given_name: string;
   name: string;
   nickname: string;
@@ -20,6 +22,14 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   const authUser = req.oidc.user as AuthUser;
+
+  const userCache = await client.get(`user:${authUser.sub}`);
+
+  if (userCache) {
+    return res.json(
+      new ApiResponse(JSON.parse(userCache), "User Login Successfully", 200),
+    );
+  }
 
   const securedDB = getSecuredClient({
     tenantId: "",
@@ -57,6 +67,8 @@ export const loginUser = asyncHandler(async (req, res) => {
     },
   });
 
+  await client.set(`user:${authUser.sub}`, JSON.stringify(user), "EX", 3600);
+
   return res.json(new ApiResponse(user, "User Login Successfully", 200));
 });
 
@@ -65,7 +77,12 @@ export const logout = asyncHandler(async (req, res) => {
     throw new ApiError("User is not authenticated", 401);
   }
 
+  const authUser = req.oidc.user as AuthUser;
+
   res.oidc.logout();
+
+  await client.del(`user:${authUser.sub}`);
+  await client.del(`session:${authUser.sub}`);
 
   return res.json(new ApiResponse({}, "User logout Successfully", 200));
 });
@@ -98,7 +115,41 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
       // avatar: avatar,
       phoneNo: phoneNo,
     },
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
+      auth0Id: true,
+      tenant: true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
+    },
   });
+
+  await client.set(
+    `user:${authUser.sub}`,
+    JSON.stringify(updatedUser),
+    "EX",
+    3600,
+  );
+
+  req.user = {
+    id: updatedUser.id,
+    role: updatedUser.role,
+    email: updatedUser.email,
+    name: updatedUser.firstName,
+  };
+
+  await client.set(
+    `session:${updatedUser.auth0Id}`,
+    JSON.stringify(req.user),
+    "EX",
+    3600,
+  );
 
   return res.json(
     new ApiResponse(updatedUser, "User updated successfully", 200),
@@ -120,6 +171,9 @@ export const deleteUser = asyncHandler(async (req, res) => {
       auth0Id: authUser.sub,
     },
   });
+
+  await client.del(`user:${authUser.sub}`);
+  await client.del(`session:${authUser.sub}`);
 
   return res.json(
     new ApiResponse(deletedUser, "User deleted successfully", 200),
