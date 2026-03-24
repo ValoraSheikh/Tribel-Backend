@@ -10,6 +10,15 @@ import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
 
+// --- FIXED: ADDED REDIS MOCK ---
+vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
+  default: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+  },
+}));
+
 vi.mock("uuid", () => ({
   v4: vi.fn(() => "mocked-uuid"),
 }));
@@ -30,6 +39,7 @@ vi.mock("../../../src/lib/prisma/db.ts", () => ({
     property: { findUnique: vi.fn() },
     roomTemplate: { findMany: vi.fn(), findUnique: vi.fn() },
     room: { updateMany: vi.fn() },
+    $transaction: vi.fn(), // --- FIXED: ADDED TRANSACTION MOCK HERE ---
   },
 }));
 
@@ -48,7 +58,9 @@ describe("RoomTemplate Controller", () => {
 
     mockSecuredDb = {
       user: { findUnique: vi.fn() },
-      $transaction: vi.fn(),
+      // --- FIXED: ADDED MISSING MOCKS TO PREVENT TYPE ERRORS ---
+      roomTemplate: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      booking: { deleteMany: vi.fn() }, 
     };
     (getSecuredClient as any).mockReturnValue(mockSecuredDb);
 
@@ -86,7 +98,8 @@ describe("RoomTemplate Controller", () => {
         adminId: "user-123",
       });
 
-      mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
+      // --- FIXED: MOCKED PRISMA INSTEAD OF SECURED DB ---
+      (prisma.$transaction as any).mockImplementation(async (callback: any) => {
         const mockTx = {
           $executeRaw: vi.fn(),
           roomTemplate: {
@@ -102,7 +115,7 @@ describe("RoomTemplate Controller", () => {
 
       expect(mockSecuredDb.user.findUnique).toHaveBeenCalled();
       expect(prisma.property.findUnique).toHaveBeenCalled();
-      expect(mockSecuredDb.$transaction).toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalled(); // --- FIXED ---
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json.mock.calls[0][0].message).toBe(
         "Room Template created successfully",
@@ -211,11 +224,8 @@ describe("RoomTemplate Controller", () => {
         tenant: { id: "tenant-99" },
       });
 
-      if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
       const fakeDetail = { id: "rt-1", title: "Suite" };
-      mockSecuredDb.roomTemplate.findUnique = vi
-        .fn()
-        .mockResolvedValue(fakeDetail);
+      mockSecuredDb.roomTemplate.findUnique.mockResolvedValue(fakeDetail);
 
       await getRoomTemplateDetail(mockReq, mockRes, mockNext);
 
@@ -282,6 +292,7 @@ describe("RoomTemplate Controller", () => {
 
       (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
+        adminId: "user-123"
       });
 
       (prisma.roomTemplate.findUnique as any).mockResolvedValue({
@@ -289,11 +300,8 @@ describe("RoomTemplate Controller", () => {
         propertyId: "prop-1",
       });
 
-      if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
       const fakeUpdatedTemplate = { id: "rt-1", title: "Updated Room" };
-      mockSecuredDb.roomTemplate.update = vi
-        .fn()
-        .mockResolvedValue(fakeUpdatedTemplate);
+      mockSecuredDb.roomTemplate.update.mockResolvedValue(fakeUpdatedTemplate);
 
       (prisma.room.updateMany as any).mockResolvedValue({ count: 5 });
 
@@ -347,6 +355,7 @@ describe("RoomTemplate Controller", () => {
       });
       (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
+        adminId: "user-123" // --- FIXED ---
       });
       (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-WRONG",
@@ -367,6 +376,7 @@ describe("RoomTemplate Controller", () => {
       });
       (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
+        adminId: "user-123" // --- FIXED: Prevented premature 403 ---
       });
       (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-1",
@@ -387,13 +397,13 @@ describe("RoomTemplate Controller", () => {
       });
       (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
+        adminId: "user-123" // --- FIXED: Prevented premature 403 ---
       });
       (prisma.roomTemplate.findUnique as any).mockResolvedValue({
         propertyId: "prop-1",
       });
 
-      if (!mockSecuredDb.roomTemplate) mockSecuredDb.roomTemplate = {};
-      mockSecuredDb.roomTemplate.update = vi.fn().mockResolvedValue(null);
+      mockSecuredDb.roomTemplate.update.mockResolvedValue(null);
 
       await updateRoomTemplate(mockReq, mockRes, mockNext);
 
@@ -420,8 +430,11 @@ describe("RoomTemplate Controller", () => {
       });
 
       const fakeDeletedTemplate = { id: "rt-1" };
-      mockSecuredDb.$transaction.mockImplementation(async (callback: any) => {
+      
+      // --- FIXED: MOCKED PRISMA INSTEAD OF SECURED DB ---
+      (prisma.$transaction as any).mockImplementation(async (callback: any) => {
         const mockTx = {
+          $executeRaw: vi.fn(),
           bed: { deleteMany: vi.fn().mockResolvedValue({}) },
           room: { deleteMany: vi.fn().mockResolvedValue({}) },
           roomTemplate: {
@@ -437,7 +450,7 @@ describe("RoomTemplate Controller", () => {
       expect(prisma.roomTemplate.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "rt-1" } }),
       );
-      expect(mockSecuredDb.$transaction).toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalled(); // --- FIXED ---
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json.mock.calls[0][0].data).toEqual(fakeDeletedTemplate);
     });
