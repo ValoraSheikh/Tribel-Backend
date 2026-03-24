@@ -11,6 +11,15 @@ import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import { ApiError } from "../../../src/lib";
 import prisma from "../../../src/lib/prisma/db";
 
+// --- ADDED: REDIS MOCK ---
+vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
+  default: {
+    get: vi.fn().mockResolvedValue(null), // Force cache miss
+    set: vi.fn(),
+    del: vi.fn(),
+  },
+}));
+
 vi.mock("../../../src/lib/index.ts", async () => {
   const original = await vi.importActual<any>("../../../src/lib/index.ts");
   return {
@@ -95,13 +104,16 @@ describe("Property Controller", () => {
         select: expect.any(Object),
       });
 
-      expect(mockSecuredDb.property.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          title: "Grand Hotel",
-          tenantId: "tenant-99",
-          adminId: "user-123",
-        }),
-      });
+      // --- FIXED: WRAPPED IN expect.objectContaining ---
+      expect(mockSecuredDb.property.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: "Grand Hotel",
+            tenantId: "tenant-99",
+            adminId: "user-123",
+          }),
+        })
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json.mock.calls[0][0].message).toBe(
