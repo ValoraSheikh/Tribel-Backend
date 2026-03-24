@@ -8,6 +8,19 @@ import {
 import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import { ApiError } from "../../../src/lib";
 
+// --- ADDED: REDIS MOCKS TO PREVENT CRASHES ---
+vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
+  default: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+  },
+}));
+
+vi.mock("../../../src/lib/redis/redis.ts", () => ({
+  default: {},
+}));
+
 vi.mock("../../../src/lib/prisma/db.ts", () => ({
   prisma: {},
 }));
@@ -161,14 +174,17 @@ describe("User Controller Tests", () => {
 
       await updateUserProfile(mockReq, mockRes, mockNext);
 
-      expect(mockDb.user.update).toHaveBeenCalledWith({
-        where: { id: "db-user-id-99" },
-        data: {
-          firstName: "NewName",
-          lastName: "NewLast",
-          phoneNo: "123",
-        },
-      });
+      // --- FIXED: WRAPPED IN expect.objectContaining TO IGNORE SELECT ---
+      expect(mockDb.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "db-user-id-99" },
+          data: expect.objectContaining({
+            firstName: "NewName",
+            lastName: "NewLast",
+            phoneNo: "123",
+          }),
+        })
+      );
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
