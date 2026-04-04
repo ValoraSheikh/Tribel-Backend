@@ -1,0 +1,27 @@
+# Dependency directories
+node_modules/
+
+# Environment variables (SECURITY RISK)
+.env
+.env.test
+
+# Local Prisma generation (CRITICAL)
+src/generated/prisma/
+
+# Build outputs (if you ever run the local build command)
+dist/
+build/
+
+# Testing files
+tests/
+vitest.config.ts
+vite.config.ts
+
+# Git and Docker metadata
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
