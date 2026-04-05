@@ -1,8 +1,11 @@
-import { Redis } from 'ioredis';
+import { Redis } from "ioredis";
 
-const client = new Redis({
-  host: '127.0.0.1',
-  port: 6379,
+if (!process.env.REDIS_URL) {
+  throw new Error("REDIS_URL is not defined in environment variables");
+}
+
+const client = new Redis(process.env.REDIS_URL, {
+  enableOfflineQueue: false,
 });
 
-export default client
+export default client;

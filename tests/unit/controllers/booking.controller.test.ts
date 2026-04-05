@@ -14,6 +14,15 @@ import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
 import { acquireLock, releaseLock } from "../../../src/lib/redis/redis-lock";
 
+// --- FIXED: ADDED REDIS CACHE MOCK TO BYPASS REAL CACHE ---
+vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
+  default: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+  },
+}));
+
 vi.mock("uuid", () => ({
   v4: vi.fn(() => "mocked-uuid"),
 }));
