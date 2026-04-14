@@ -14,6 +14,7 @@ import tenantRouter from "./routes/tenant.route.ts";
 import propertyRouter from "./routes/property.route.ts";
 import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 import bookingRouter from "./routes/booking.route.ts";
+import uploadRouter from "./routes/upload.route.ts"
 import client from "./lib/redis/redis-cache.ts";
 import type { AuthUser } from "./controller/user.controller.ts";
 
@@ -167,5 +168,6 @@ app.use("/api/v1/tenant", tenantRouter);
 app.use("/api/v1/properties", propertyRouter);
 app.use("/api/v1/p/:propertyId/roomTemplate", roomTemplateRouter);
 app.use("/api/v1/booking", bookingRouter);
+app.use("/api/v1/uploads", uploadRouter);
 
 export { app };
