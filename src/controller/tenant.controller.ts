@@ -10,6 +10,10 @@ export const createTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User ID is missing", 401);
   }
 
+  if (req.user.role == "Admin") {
+    throw new ApiError("User already has a tenant", 401);
+  }
+
   const securedDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
@@ -17,17 +21,25 @@ export const createTenant = asyncHandler(async (req, res) => {
     auth0Id: req.oidc.user?.sub,
   });
 
-  const user = await securedDB.user.findUnique({
+  const user = await securedDB.user.update({
     where: {
       id: req.user.id,
     },
+    data: {
+      role: "Admin",
+    },
     select: {
-      id: true,
-      role: true,
-      email: true,
       firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
       auth0Id: true,
       tenant: true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
     },
   });
 
@@ -39,27 +51,11 @@ export const createTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User already has a tenant", 401);
   }
 
-  const userData = await securedDB.user.update({
-    where: {
-      id: req.user.id,
-    },
-    data: {
-      role: "Admin",
-    },
-  });
-
-  await client.set(
-    `user:${user.auth0Id}`,
-    JSON.stringify(userData),
-    "EX",
-    3600,
-  );
-
   req.user = {
-    id: userData.id,
-    role: userData.role,
-    email: userData.email,
-    name: userData.firstName,
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    name: user.firstName,
   };
 
   await client.set(
@@ -104,6 +100,32 @@ export const createTenant = asyncHandler(async (req, res) => {
       },
     },
   });
+
+  const userData = await securedDB.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
+      auth0Id: true,
+      tenant: true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
+    },
+  });
+
+  await client.set(
+    `user:${user.auth0Id}`,
+    JSON.stringify(userData),
+    "EX",
+    3600,
+  );
 
   await client.set(`tenant:${tenant.id}`, JSON.stringify(tenant), "EX", 3600);
 
@@ -305,7 +327,7 @@ export const updateTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User ID missing", 401);
   }
 
-  const tenant = await prisma.tenant.findFirst({
+  const tenant = await prisma.tenant.findUnique({
     where: { userId: req.user.id },
   });
 
@@ -328,6 +350,30 @@ export const updateTenant = asyncHandler(async (req, res) => {
       profile: profile,
       currency: currency,
       timezone: timezone,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      profile: true,
+      timezone: true,
+      createdAt: true,
+      updatedAt: true,
+      currency: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          auth0Id: true,
+          avatar: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
     },
   });
 
