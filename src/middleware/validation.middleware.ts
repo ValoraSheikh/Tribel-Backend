@@ -237,3 +237,14 @@ export const bookingValidation = validate(
     query: z.object({}).optional(),
   }),
 );
+
+
+export const uploadValidaton = validate(
+  z.object({
+    body: z.object({
+      entity: z.string().trim().min(1),
+      fileType: z.string().trim().min(1),
+      entityId: z.string().trim().min(1),
+    }),
+  }),
+);
