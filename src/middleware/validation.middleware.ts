@@ -50,7 +50,7 @@ export const userValidation = validate(
       firstName: z.string().trim().min(1),
       lastName: z.string().trim().min(1),
       email: z.email().trim(),
-      avatar: z.url(),
+      avatar: z.string().trim().min(1),
       role: z.string().uppercase().trim(),
     }),
     params: z.object({}).optional(),
