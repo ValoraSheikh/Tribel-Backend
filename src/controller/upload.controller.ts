@@ -16,7 +16,7 @@ export const getPresignedUploadUrl = asyncHandler(async (req, res) => {
     .status(200)
     .json(
       new ApiResponse(
-        { upload: uploadUrl, key: key },
+        { uploadUrl: uploadUrl, key: key },
         "Upload URL created",
         200,
       ),
