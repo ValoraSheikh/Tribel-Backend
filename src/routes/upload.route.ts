@@ -7,6 +7,6 @@ const router = Router();
 
 const { requiresAuth } = pkg;
 
-router.post("/presign",  uploadValidaton, getPresignedUploadUrl);
+router.post("/presign", requiresAuth(), uploadValidaton, getPresignedUploadUrl);
 
 export default router;
