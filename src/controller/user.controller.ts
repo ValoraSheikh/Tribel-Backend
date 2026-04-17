@@ -2,6 +2,7 @@ import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 import redisClient from "../lib/redis/redis.ts";
+import { deleteObject } from "../services/s3.service.ts";
 
 export type AuthUser = {
   given_name: string;
@@ -42,7 +43,6 @@ export const loginUser = asyncHandler(async (req, res) => {
     where: { auth0Id: authUser.sub },
     update: {
       email: authUser.email,
-      avatar: authUser.picture,
     },
     create: {
       firstName: authUser.given_name || authUser.name,
@@ -154,6 +154,35 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse(updatedUser, "User updated successfully", 200),
   );
+});
+
+export const updateAvatar = asyncHandler(async (req, res) => {
+  const { avatarUrl, key } = req.body;
+  const authUser = req.oidc.user as AuthUser;
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: "",
+  });
+
+  await securedDB.user.update({
+    where: {
+      id: req.user.id,
+    },
+    data: {
+      avatar: avatarUrl,
+    },
+  });
+
+  await client.del(`user:${authUser.sub}`);
+
+  // await deleteObject({ key: key });
+
+  res
+    .status(200)
+    .json(new ApiResponse({}, "Updated User Avatar successfully", 200));
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
