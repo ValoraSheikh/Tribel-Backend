@@ -421,8 +421,14 @@ export const updateTenantProfile = asyncHandler(async (req, res) => {
       profile: key,
     },
   });
-  
+
+  await client.del(`tenant:${tenant.id}`);
+
   if (oldKey?.startsWith("public/")) {
     await deleteObject({ key: oldKey });
   }
+
+  res
+    .status(200)
+    .json(new ApiResponse({}, "Profile updated successfully", 200));
 });
