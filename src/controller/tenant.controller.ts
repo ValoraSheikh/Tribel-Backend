@@ -2,6 +2,7 @@ import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
+import { deleteObject } from "../services/s3.service.ts";
 
 export const createTenant = asyncHandler(async (req, res) => {
   const { name, slug, description, profile, currency, timezone } = req.body;
@@ -382,4 +383,46 @@ export const updateTenant = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(data, "Tenant updated successfully", 200));
+});
+
+export const updateTenantAvatar = asyncHandler(async (req, res) => {
+  const { key } = req.body;
+
+  if (!req.user?.id) {
+    throw new ApiError("User ID missing", 401);
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { userId: req.user.id },
+    select: {
+      id: true,
+      profile: true,
+    },
+  });
+
+  if (!tenant) {
+    throw new ApiError("Tenant not found", 404);
+  }
+
+  const oldKey = tenant.profile;
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant.id,
+    role: req.user.role,
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  await securedDB.tenant.update({
+    where: {
+      id: tenant.id,
+    },
+    data: {
+      profile: key,
+    },
+  });
+  
+  if (oldKey?.startsWith("public/")) {
+    await deleteObject({ key: oldKey });
+  }
 });
