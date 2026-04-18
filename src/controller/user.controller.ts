@@ -157,7 +157,7 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateAvatar = asyncHandler(async (req, res) => {
-  const { avatarUrl, key } = req.body;
+  const { key } = req.body;
   const authUser = req.oidc.user as AuthUser;
 
   const securedDB = getSecuredClient({
@@ -167,18 +167,35 @@ export const updateAvatar = asyncHandler(async (req, res) => {
     auth0Id: "",
   });
 
+  const user = await securedDB.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+    select: {
+      avatar: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError("User not found", 404);
+  }
+
+  const oldKey = user?.avatar;
+
   await securedDB.user.update({
     where: {
       id: req.user.id,
     },
     data: {
-      avatar: avatarUrl,
+      avatar: key,
     },
   });
 
-  await client.del(`user:${authUser.sub}`);
+  if (oldKey?.startsWith("public/")) {
+    await deleteObject({ key: oldKey });
+  }
 
-  // await deleteObject({ key: key });
+  await client.del(`user:${authUser.sub}`);
 
   res
     .status(200)
