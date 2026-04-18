@@ -4,6 +4,7 @@ import {
   getAllTenants,
   getTenantDetail,
   updateTenant,
+  updateTenantProfile,
 } from "../controller/tenant.controller.ts";
 import pkg from "express-openid-connect";
 import {
@@ -48,5 +49,6 @@ router.patch(
   updateTenantValidation,
   updateTenant,
 );
+router.patch("/profile", requiresAuth(), updateTenantProfile);
 
 export default router;

@@ -385,7 +385,7 @@ export const updateTenant = asyncHandler(async (req, res) => {
     .json(new ApiResponse(data, "Tenant updated successfully", 200));
 });
 
-export const updateTenantAvatar = asyncHandler(async (req, res) => {
+export const updateTenantProfile = asyncHandler(async (req, res) => {
   const { key } = req.body;
 
   if (!req.user?.id) {
