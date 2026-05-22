@@ -29,6 +29,7 @@ export const user = async (sub: string) => {
       role: true,
       auth0Id: true,
       email: true,
+      avatar: true,
     },
   });
 

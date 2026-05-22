@@ -2,13 +2,18 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'app_user') THEN
-    CREATE ROLE app_user NOLOGIN;
+    IF NOT EXISTS (
+    SELECT FROM pg_catalog.pg_roles 
+        WHERE rolname = 'app_user'
+    ) THEN
+
+    CREATE ROLE app_user WITH LOGIN PASSWORD 'xQTzv9LsiDaasd49R1PBeZXtKV' NOBYPASSRLS;
+    
   END IF;
 END
 $$;
 
-GRANT CONNECT ON DATABASE neondb TO app_user;
+GRANT CONNECT ON DATABASE tribel TO app_user;
 GRANT USAGE ON SCHEMA public TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;

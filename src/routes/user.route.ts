@@ -3,6 +3,7 @@ import {
   deleteUser,
   loginUser,
   logout,
+  updateAvatar,
   updateUserProfile,
 } from "../controller/user.controller.ts";
 import pkg from "express-openid-connect";
@@ -27,6 +28,7 @@ router.patch(
   updateUserValidation,
   updateUserProfile,
 );
+router.patch("/avatar", updateAvatar);
 router.delete("/delete", requiresAuth(), userRateLimit, deleteUser);
 
 export default router;

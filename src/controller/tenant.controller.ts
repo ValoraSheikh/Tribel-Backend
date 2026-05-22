@@ -2,12 +2,17 @@ import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
+import { deleteObject } from "../services/s3.service.ts";
 
 export const createTenant = asyncHandler(async (req, res) => {
   const { name, slug, description, profile, currency, timezone } = req.body;
 
   if (!req.user?.id) {
     throw new ApiError("User ID is missing", 401);
+  }
+
+  if (req.user.role == "Admin") {
+    throw new ApiError("User already has a tenant", 401);
   }
 
   const securedDB = getSecuredClient({
@@ -17,17 +22,25 @@ export const createTenant = asyncHandler(async (req, res) => {
     auth0Id: req.oidc.user?.sub,
   });
 
-  const user = await securedDB.user.findUnique({
+  const user = await securedDB.user.update({
     where: {
       id: req.user.id,
     },
+    data: {
+      role: "Admin",
+    },
     select: {
-      id: true,
-      role: true,
-      email: true,
       firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
       auth0Id: true,
       tenant: true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
     },
   });
 
@@ -39,27 +52,11 @@ export const createTenant = asyncHandler(async (req, res) => {
     throw new ApiError("User already has a tenant", 401);
   }
 
-  const userData = await securedDB.user.update({
-    where: {
-      id: req.user.id,
-    },
-    data: {
-      role: "Admin",
-    },
-  });
-
-  await client.set(
-    `user:${user.auth0Id}`,
-    JSON.stringify(userData),
-    "EX",
-    3600,
-  );
-
   req.user = {
-    id: userData.id,
-    role: userData.role,
-    email: userData.email,
-    name: userData.firstName,
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    name: user.firstName,
   };
 
   await client.set(
@@ -104,6 +101,32 @@ export const createTenant = asyncHandler(async (req, res) => {
       },
     },
   });
+
+  const userData = await securedDB.user.findUnique({
+    where: {
+      id: req.user.id,
+    },
+    select: {
+      firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      role: true,
+      auth0Id: true,
+      tenant: true,
+      createdAt: true,
+      updatedAt: true,
+      id: true,
+      phoneNo: true,
+    },
+  });
+
+  await client.set(
+    `user:${user.auth0Id}`,
+    JSON.stringify(userData),
+    "EX",
+    3600,
+  );
 
   await client.set(`tenant:${tenant.id}`, JSON.stringify(tenant), "EX", 3600);
 
@@ -299,13 +322,13 @@ export const getAllTenants = asyncHandler(async (req, res) => {
 });
 
 export const updateTenant = asyncHandler(async (req, res) => {
-  const { name, description, profile, currency, timezone } = req.body;
+  const { name, description, currency, timezone } = req.body;
 
   if (!req.user?.id) {
     throw new ApiError("User ID missing", 401);
   }
 
-  const tenant = await prisma.tenant.findFirst({
+  const tenant = await prisma.tenant.findUnique({
     where: { userId: req.user.id },
   });
 
@@ -325,9 +348,32 @@ export const updateTenant = asyncHandler(async (req, res) => {
     data: {
       name: name,
       description: description,
-      profile: profile,
       currency: currency,
       timezone: timezone,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      profile: true,
+      timezone: true,
+      createdAt: true,
+      updatedAt: true,
+      currency: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          auth0Id: true,
+          avatar: true,
+          email: true,
+          phoneNo: true,
+        },
+      },
     },
   });
 
@@ -336,4 +382,52 @@ export const updateTenant = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(data, "Tenant updated successfully", 200));
+});
+
+export const updateTenantProfile = asyncHandler(async (req, res) => {
+  const { key } = req.body;
+
+  if (!req.user?.id) {
+    throw new ApiError("User ID missing", 401);
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { userId: req.user.id },
+    select: {
+      id: true,
+      profile: true,
+    },
+  });
+
+  if (!tenant) {
+    throw new ApiError("Tenant not found", 404);
+  }
+
+  const oldKey = tenant.profile;
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: tenant.id,
+    role: req.user.role,
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  await securedDB.tenant.update({
+    where: {
+      id: tenant.id,
+    },
+    data: {
+      profile: key,
+    },
+  });
+
+  await client.del(`tenant:${tenant.id}`);
+
+  if (oldKey?.startsWith("public/")) {
+    await deleteObject({ key: oldKey });
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse({}, "Profile updated successfully", 200));
 });
