@@ -322,7 +322,7 @@ export const getAllTenants = asyncHandler(async (req, res) => {
 });
 
 export const updateTenant = asyncHandler(async (req, res) => {
-  const { name, description, profile, currency, timezone } = req.body;
+  const { name, description, currency, timezone } = req.body;
 
   if (!req.user?.id) {
     throw new ApiError("User ID missing", 401);
@@ -348,7 +348,6 @@ export const updateTenant = asyncHandler(async (req, res) => {
     data: {
       name: name,
       description: description,
-      profile: profile,
       currency: currency,
       timezone: timezone,
     },
