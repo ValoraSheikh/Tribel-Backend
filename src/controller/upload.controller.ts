@@ -1,5 +1,5 @@
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
-import { putObject } from "../services/s3.service.ts";
+import { deleteObject, putObject } from "../services/s3.service.ts";
 import { generateKey, type UploadEntity } from "../utils/s3keys.ts";
 
 export const getPresignedUploadUrl = asyncHandler(async (req, res) => {
@@ -21,4 +21,14 @@ export const getPresignedUploadUrl = asyncHandler(async (req, res) => {
         200,
       ),
     );
+});
+
+export const deleteKey = asyncHandler(async (req, res) => {
+  const { key } = req.body;
+
+  await deleteObject({ key: key });
+  
+  return res
+    .status(200)
+    .json(new ApiResponse([], "Image Key delete successfully", 200));
 });
