@@ -96,7 +96,6 @@ export const updateTenantValidation = validate(
   z.object({
     body: z.object({
       name: z.string().min(1).trim(),
-      profile: z.url(),
       description: z.string().min(10).trim(),
       currency: z.string().uppercase().min(1).trim(),
       timezone: z.string().min(1).trim(),
@@ -117,7 +116,7 @@ export const propertyValidation = validate(
       city: z.string().min(1).trim(),
       state: z.string().min(1).trim(),
       country: z.string().min(1).trim(),
-      images: z.array(z.url()),
+      images: z.array(z.string()),
       postal_code: z.string().min(1).trim(),
       latitude: z.coerce.number().gte(-90).lte(90),
       longitude: z.coerce.number().gte(-180).lte(180),
