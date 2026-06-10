@@ -157,7 +157,7 @@ export const updatePropertyValidation = validate(
       city: z.string().min(1).trim(),
       state: z.string().min(1).trim(),
       country: z.string().min(1).trim(),
-      images: z.array(z.url()),
+      images: z.array(z.string()),
       postal_code: z.string().min(1).trim(),
       latitude: z.coerce.number().gte(-90).lte(90),
       longitude: z.coerce.number().gte(-180).lte(180),
@@ -189,7 +189,7 @@ export const roomTemplateValidation = validate(
           }),
         )
         .optional(),
-      image: z.url(),
+      image: z.string().min(1).trim(),
     }),
     params: z.object({
       propertyId: z.string().min(1),
@@ -213,7 +213,7 @@ export const updateRoomTemplateValidation = validate(
           }),
         )
         .optional(),
-      image: z.url(),
+      image: z.string().min(1).trim(),
     }),
     params: z.object({
       propertyId: z.string().min(1),
@@ -236,7 +236,6 @@ export const bookingValidation = validate(
     query: z.object({}).optional(),
   }),
 );
-
 
 export const uploadValidaton = validate(
   z.object({
