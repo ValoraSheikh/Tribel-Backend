@@ -17,6 +17,10 @@ async function rabbitmq({
     durable: true,
   });
 
+  await channel.assertExchange("tribel.dlx", "direct", {
+    durable: true,
+  });
+  
   channel.publish(exchange, routingKey, Buffer.from(msg), {
     persistent: true,
   });
