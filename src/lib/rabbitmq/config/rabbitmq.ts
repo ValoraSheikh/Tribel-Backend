@@ -1,4 +1,4 @@
-import { connect } from "amqplib";
+import createRabbitMQConnection from "./connection.ts";
 
 type routingKey = "email" | "invoice" | "notification";
 
@@ -11,8 +11,7 @@ async function rabbitmq({
   exchange: string;
   routingKey: routingKey;
 }) {
-  const connection = await connect(process.env.RABBITMQ_ACCESS_KEY || "");
-  const channel = await connection.createChannel();
+  const channel = await createRabbitMQConnection();
 
   await channel.assertExchange(exchange, "direct", {
     durable: true,
