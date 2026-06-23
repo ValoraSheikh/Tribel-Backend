@@ -8,6 +8,6 @@ const router = Router();
 const { requiresAuth } = pkg;
 
 router.post("/presign", requiresAuth(), uploadValidaton, getPresignedUploadUrl);
-router.post("/deleteKey", requiresAuth, deleteKey);
+router.post("/deleteKey", requiresAuth(), deleteKey);
 
 export default router;

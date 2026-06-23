@@ -7,7 +7,9 @@
     "start": "tsc && node dist/index.js",
     "dev": "nodemon src/index.ts",
     "test": "dotenv -e .env.test -- vitest run --no-file-parallelism",
-    "test:integration": "dotenv -e .env.test -- vitest run"
+    "test:integration": "dotenv -e .env.test -- vitest run",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "amansheikh",
@@ -18,6 +20,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1029.0",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
+    "amqplib": "^2.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
