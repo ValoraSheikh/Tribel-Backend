@@ -35,7 +35,7 @@ export const createBooking = asyncHandler(async (req, res) => {
   try {
     if (!propertyId) throw new ApiError("Property ID is missing", 400);
 
-    if (startDate.getTime() < Date.now()) {
+    if (startDate.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
       throw new ApiError("Start date should be bigger than today's date", 400);
     }
 
@@ -65,6 +65,7 @@ export const createBooking = asyncHandler(async (req, res) => {
                   WHERE bk."bedId" = b.id
                   AND bk."startDate" < ${endDate}
                   AND bk."endDate" > ${startDate}
+                  AND bk."status" IN ('UPCOMING', 'ONGOING', 'CONFIRMED')
               )
               LIMIT 1
               FOR NO KEY UPDATE OF b SKIP LOCKED;
@@ -267,6 +268,15 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
     },
   });
 
+  await prisma.bed.update({
+    where: {
+      id: booking.bedId,
+    },
+    data: {
+      userId: null,
+    },
+  });
+
   if (!booking) throw new ApiError("No booking found", 404);
 
   return res
@@ -407,18 +417,18 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
   if (!user || !property)
     throw new ApiError("No user and property found with this ID", 404);
 
-  const AdminBookingsCache = await client.get(`AdminBookings:${propertyId}`);
-  if (AdminBookingsCache) {
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          JSON.parse(AdminBookingsCache),
-          "Bookings fetched successfully",
-          200,
-        ),
-      );
-  }
+  // const AdminBookingsCache = await client.get(`AdminBookings:${propertyId}`);
+  // if (AdminBookingsCache) {
+  //   return res
+  //     .status(200)
+  //     .json(
+  //       new ApiResponse(
+  //         JSON.parse(AdminBookingsCache),
+  //         "Bookings fetched successfully",
+  //         200,
+  //       ),
+  //     );
+  // }
 
   const tenant = user.tenant;
 
