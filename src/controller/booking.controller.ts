@@ -6,7 +6,7 @@ import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
-  const { propertyId, roomTemplateId, startDate, endDate } = req.body;
+  const { propertyId, roomTemplateId, startDate, endDate, paymentMode } = req.body;
   let key: string | undefined;
   const keyValue = uuidv4();
   const ttl = 5000;
@@ -102,6 +102,8 @@ export const createBooking = asyncHandler(async (req, res) => {
             startDate,
             endDate,
             status: "CONFIRMED",
+            paymentMode: paymentMode,
+            paymentStatus: "PENDING",
           },
         });
 
