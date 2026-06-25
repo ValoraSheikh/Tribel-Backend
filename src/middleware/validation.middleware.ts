@@ -231,6 +231,7 @@ export const bookingValidation = validate(
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       // bedId: z.string().min(1).trim(),
+      paymentMode: z.enum(["OFFLINE", "ONLINE", ]),
     }),
     params: z.object({}).optional(),
     query: z.object({}).optional(),
