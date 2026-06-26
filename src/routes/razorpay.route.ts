@@ -1,7 +1,27 @@
-import { createRazorpayOrder, verifyRazorpayPayment } from "../controller/razorpay.controller.ts";
-import { app } from "../app.ts";
-import { requiresAuth } from "express-openid-connect";
+import { Router } from "express";
+// import { requiresAuth } from "express-openid-connect";
+import {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+} from "../controller/razorpay.controller.ts";
+import {
+  createOrderValidation,
+  verifyPaymentValidation,
+} from "../middleware/validation.middleware.ts";
 
+const router = Router();
 
-app.get('/razorpay',requiresAuth(), createRazorpayOrder);
-app.post('/verify', requiresAuth(), verifyRazorpayPayment);
+router.post(
+  "/create-order",
+  // requiresAuth(),
+  createOrderValidation,
+  createRazorpayOrder,
+);
+router.post(
+  "/verify",
+  // requiresAuth(),
+  verifyPaymentValidation,
+  verifyRazorpayPayment,
+);
+
+export default router;
