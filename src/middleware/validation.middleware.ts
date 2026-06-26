@@ -238,6 +238,27 @@ export const bookingValidation = validate(
   }),
 );
 
+export const createOrderValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const verifyPaymentValidation = validate(
+  z.object({
+    body: z.object({
+      razorpay_order_id: z.string().min(1),
+      razorpay_payment_id: z.string().min(1),
+      razorpay_signature: z.string().min(1),
+      bookingId: z.string().uuid(),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
 export const uploadValidaton = validate(
   z.object({
     body: z.object({
