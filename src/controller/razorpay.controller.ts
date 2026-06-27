@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import prisma from "../lib/prisma/db.ts";
 import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
+import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -11,8 +12,17 @@ const razorpay = new Razorpay({
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
   const { bookingId } = req.body;
+  
+  console.log("Booking id", bookingId)
+  
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
 
-  const booking = await prisma.booking.findUnique({
+  const booking = await securedDB.booking.findUnique({
     where: { id: bookingId },
     include: { property: true },
   });
@@ -29,7 +39,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     throw new ApiError("Booking is already paid", 409);
   }
 
-  const existingPayment = await prisma.payment.findFirst({
+  const existingPayment = await securedDB.payment.findFirst({
     where: { bookingId, status: "PAID" },
   });
 
@@ -42,7 +52,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
   const options = {
     amount: amountInPaise,
     currency: "INR",
-    receipt: `booking_${bookingId}`,
+    receipt: `${bookingId}`,
     notes: {
       bookingId: bookingId,
       userId: req.user.id,
@@ -68,7 +78,14 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
 
-  const booking = await prisma.booking.findUnique({
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const booking = await securedDB.booking.findUnique({
     where: { id: bookingId },
   });
 
@@ -122,7 +139,7 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiResponse(null, "Invalid payment signature", 400));
   }
 
-  const payment = await prisma.$transaction(async (tx) => {
+  const payment = await securedDB.$transaction(async (tx) => {
     const payment = await tx.payment.create({
       data: {
         bookingId,
