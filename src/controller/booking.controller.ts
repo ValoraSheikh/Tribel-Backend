@@ -66,7 +66,7 @@ export const createBooking = asyncHandler(async (req, res) => {
                   WHERE bk."bedId" = b.id
                   AND bk."startDate" < ${endDate}
                   AND bk."endDate" > ${startDate}
-                  AND bk."status" IN ('UPCOMING', 'ONGOING', 'CONFIRMED')
+                  AND bk."status" IN ('PENDING', 'CONFIRMED')
               )
               LIMIT 1
               FOR NO KEY UPDATE OF b SKIP LOCKED;
