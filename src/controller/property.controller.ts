@@ -695,6 +695,68 @@ export const findPropertyOnLocation = asyncHandler(async (req, res) => {
   );
 });
 
+export const getBookingData = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params;
+
+  if (!propertyId) {
+    throw new ApiError("Property ID is required", 400);
+  }
+
+  const propertyDetail = await prisma.property.findUnique({
+    where: { id: propertyId },
+    select: {
+      id: true,
+      title: true,
+      address: true,
+      city: true,
+      state: true,
+      country: true,
+      images: true,
+      contact_email: true,
+      contact_phone: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          currency: true,
+        },
+      },
+    },
+  });
+
+  if (!propertyDetail) {
+    throw new ApiError("No property found with this ID", 404);
+  }
+
+  const roomTemplates = await prisma.roomTemplate.findMany({
+    where: { propertyId },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      bedsPerRoom: true,
+      numberOfRooms: true,
+      pricePerBed: true,
+      type: true,
+      amenities: true,
+      image: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        property: propertyDetail,
+        roomTemplates,
+      },
+      "Booking data fetched successfully",
+      200,
+    ),
+  );
+});
+
 export const newProperties = asyncHandler(async (req, res) => {
   let limit = parseInt(req.query.limit as string) || 8;
   limit = Math.min(Math.max(limit, 1), 50);
