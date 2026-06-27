@@ -12,9 +12,9 @@ const razorpay = new Razorpay({
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
   const { bookingId } = req.body;
-  
-  console.log("Booking id", bookingId)
-  
+
+  console.log("Booking id", bookingId);
+
   const securedDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
@@ -76,7 +76,12 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 });
 
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    bookingId,
+  } = req.body;
 
   const securedDB = getSecuredClient({
     userId: req.user.id,
@@ -105,9 +110,14 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     if (existingPayment.status === "PAID") {
       return res
         .status(200)
-        .json(new ApiResponse(existingPayment, "Payment already verified", 200));
+        .json(
+          new ApiResponse(existingPayment, "Payment already verified", 200),
+        );
     }
-    throw new ApiError("Payment previously failed. Create a new order to retry.", 400);
+    throw new ApiError(
+      "Payment previously failed. Create a new order to retry.",
+      400,
+    );
   }
 
   const generatedSignature = crypto
@@ -118,6 +128,14 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
   const isAuthentic = generatedSignature === razorpay_signature;
 
   if (!isAuthentic) {
+    await securedDB.booking.update({
+      where: {
+        id: bookingId,
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
     await prisma.payment.create({
       data: {
         bookingId,
@@ -131,12 +149,18 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         razorpaySignature: razorpay_signature,
         failureReason: "Invalid signature",
         metadata: {
-          user: { userId: req.user.id, name: req.user.name, email: req.user.email },
+          user: {
+            userId: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+          },
         },
       },
     });
 
-    return res.status(400).json(new ApiResponse(null, "Invalid payment signature", 400));
+    return res
+      .status(400)
+      .json(new ApiResponse(null, "Invalid payment signature", 400));
   }
 
   const payment = await securedDB.$transaction(async (tx) => {
@@ -153,14 +177,22 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         razorpaySignature: razorpay_signature,
         paidAt: new Date(),
         metadata: {
-          user: { userId: req.user.id, name: req.user.name, email: req.user.email },
+          user: {
+            userId: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+          },
         },
       },
     });
 
     await tx.booking.update({
       where: { id: bookingId },
-      data: { paymentStatus: "PAID" },
+      data: {
+        paymentStatus: "PAID",
+        paymentMode: "ONLINE",
+        status: "CONFIRMED",
+      },
     });
 
     return payment;
