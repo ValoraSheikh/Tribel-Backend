@@ -1,5 +1,5 @@
 import { Router } from "express";
-// import { requiresAuth } from "express-openid-connect";
+import pkg from "express-openid-connect";
 import {
   createRazorpayOrder,
   verifyRazorpayPayment,
@@ -9,17 +9,19 @@ import {
   verifyPaymentValidation,
 } from "../middleware/validation.middleware.ts";
 
+const { requiresAuth } = pkg;
+
 const router = Router();
 
 router.post(
   "/create-order",
-  // requiresAuth(),
+  requiresAuth(),
   createOrderValidation,
   createRazorpayOrder,
 );
 router.post(
   "/verify",
-  // requiresAuth(),
+  requiresAuth(),
   verifyPaymentValidation,
   verifyRazorpayPayment,
 );
