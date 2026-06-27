@@ -154,7 +154,7 @@ model Booking {
   propertyId    String
   roomId        String
   guestId       String
-  status        BookingStatus @default(UPCOMING)
+  status        BookingStatus @default(PENDING)
   totalPrice    Decimal       @db.Decimal(12, 2)
   startDate     DateTime
   endDate       DateTime
@@ -261,7 +261,6 @@ enum UserRole {
 enum InvoiceStatus {
   PENDING
   GENERATED
-  SENT
   FAILED
 }
 
@@ -288,10 +287,8 @@ enum PaymentStatus {
 }
 
 enum BookingStatus {
-  UPCOMING
-  ONGOING
+  PENDING
   CONFIRMED
   CANCELLED
-  COMPLETED
   REJECTED
 }
