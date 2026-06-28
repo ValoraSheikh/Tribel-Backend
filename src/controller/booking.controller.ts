@@ -6,7 +6,8 @@ import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
-  const { propertyId, roomTemplateId, startDate, endDate } = req.body;
+  const { propertyId, roomTemplateId, startDate, endDate, paymentMode } =
+    req.body;
   let key: string | undefined;
   const keyValue = uuidv4();
   const ttl = 5000;
@@ -65,7 +66,7 @@ export const createBooking = asyncHandler(async (req, res) => {
                   WHERE bk."bedId" = b.id
                   AND bk."startDate" < ${endDate}
                   AND bk."endDate" > ${startDate}
-                  AND bk."status" IN ('UPCOMING', 'ONGOING', 'CONFIRMED')
+                  AND bk."status" IN ('PENDING', 'CONFIRMED')
               )
               LIMIT 1
               FOR NO KEY UPDATE OF b SKIP LOCKED;
@@ -101,7 +102,9 @@ export const createBooking = asyncHandler(async (req, res) => {
             totalPrice: chooseBed?.pricePerBed,
             startDate,
             endDate,
-            status: "CONFIRMED",
+            status: "PENDING",
+            paymentMode: paymentMode,
+            paymentStatus: "PENDING",
           },
         });
 
@@ -312,6 +315,8 @@ export const getUserBookings = asyncHandler(async (req, res) => {
         roomId: true,
         bedId: true,
         status: true,
+        paymentMode: true,
+        paymentStatus: true,
         guest: {
           select: {
             id: true,
@@ -460,6 +465,8 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
         roomId: true,
         bedId: true,
         status: true,
+        paymentMode: true,
+        paymentStatus: true,
         guest: {
           select: {
             id: true,
@@ -618,6 +625,8 @@ export const updateUserBooking = asyncHandler(async (req, res) => {
       roomId: true,
       bedId: true,
       status: true,
+      paymentMode: true,
+      paymentStatus: true,
       guest: {
         select: {
           id: true,
@@ -720,6 +729,8 @@ export const getAllBooking = asyncHandler(async (req, res) => {
         updatedAt: true,
         cancelledAt: true,
         bedId: true,
+        paymentMode: true,
+        paymentStatus: true,
         property: {
           select: {
             id: true,
@@ -849,6 +860,8 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
       roomId: true,
       bedId: true,
       status: true,
+      paymentMode: true,
+      paymentStatus: true,
       guest: {
         select: {
           id: true,

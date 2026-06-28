@@ -143,10 +143,12 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/node
 
-src/generated
+src/generated/prisma
 
 private
 private.pub
 
 docker-compose.local.yml
 docker-data
+
+.commandcode

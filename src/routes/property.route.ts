@@ -3,6 +3,7 @@ import {
   createProperty,
   deleteProperty,
   getAdminProperties,
+  getBookingData,
   getPropertyDetail,
   newProperties,
   searchProperty,
@@ -55,6 +56,7 @@ router.get(
 );
 
 router.get("/newProperty", publicGetRateLimit, newProperties);
+router.get("/:propertyId/booking-data", publicGetRateLimit, getBookingData);
 router.get("/:propertyId", publicGetRateLimit, getPropertyDetail);
 
 export default router;
