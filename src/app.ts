@@ -31,7 +31,12 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
   }),
 );
-app.use(express.json({ limit: "16kb" }));
+app.use(express.json({
+  limit: "16kb",
+  verify: (req: Request, _res: Response, buf: Buffer) => {
+    (req as any).rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
