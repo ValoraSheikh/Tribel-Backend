@@ -3,6 +3,7 @@ import pkg from "express-openid-connect";
 import {
   createRazorpayOrder,
   verifyRazorpayPayment,
+  handleRazorpayWebhook,
 } from "../controller/razorpay.controller.ts";
 import {
   createOrderValidation,
@@ -25,5 +26,7 @@ router.post(
   verifyPaymentValidation,
   verifyRazorpayPayment,
 );
+
+router.post("/webhook", handleRazorpayWebhook);
 
 export default router;
