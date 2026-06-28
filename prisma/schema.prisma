@@ -24,6 +24,7 @@ model User {
   payments   Payment[]
   properties Property[]
   tenant     Tenant?
+  payments   Payment[]
 }
 
 model Tenant {
@@ -73,6 +74,7 @@ model Property {
   reviews       Reviews[]
   rooms         Room[]
   roomTemplate  RoomTemplate[]
+  reviews       Reviews[]
 
   @@index([tenantId])
   @@index([adminId])
@@ -289,6 +291,8 @@ enum PaymentStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  ONGOING
+  COMPLETED
   CANCELLED
   REJECTED
 }
