@@ -2,8 +2,11 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import prisma from "../lib/prisma/db.ts";
-import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
+import {
+  verifyWebhookSignature,
+  processWebhookEvent,
+} from "../services/webhook.service.ts";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -224,4 +227,39 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
       200,
     ),
   );
+});
+
+export const handleRazorpayWebhook = asyncHandler(async (req, res) => {
+  const signature = req.headers["x-razorpay-signature"] as string | undefined;
+  const eventId = req.headers["x-razorpay-event-id"] as string | undefined;
+  const rawBody = req.rawBody;
+
+  if (!signature) {
+    throw new ApiError("Missing X-Razorpay-Signature header", 400);
+  }
+  if (!eventId) {
+    throw new ApiError("Missing X-Razorpay-Event-Id header", 400);
+  }
+  if (!rawBody) {
+    throw new ApiError("Missing raw request body", 400);
+  }
+
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("RAZORPAY_WEBHOOK_SECRET is not configured");
+    throw new ApiError("Webhook configuration error", 500);
+  }
+
+  const isValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
+  if (!isValid) {
+    console.warn("Invalid webhook signature received");
+    throw new ApiError("Invalid signature", 400);
+  }
+
+  const payload = req.body;
+  console.log(`Webhook event received: ${payload.event} (id: ${eventId})`);
+
+  const result = await processWebhookEvent(eventId, payload);
+
+  res.status(200).json(new ApiResponse(null, result.message, 200));
 });
