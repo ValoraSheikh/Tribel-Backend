@@ -5,8 +5,6 @@ export type Emaildata = {
 };
 
 export type InvoiceData = {
-  title: string;
-  email: string;
-  body: string;
-  invoice: string;
+  bookingId: string;
+  paymentId: string;
 };
