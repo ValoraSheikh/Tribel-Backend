@@ -1,3 +1,5 @@
+import { InventoryIncludedObjectVersions } from "@aws-sdk/client-s3";
+
 type keyParams = { entityId: string; ext: string };
 
 export const generateKey = {
@@ -19,6 +21,10 @@ export const generateKey = {
 
   booking: ({ entityId, ext }: { entityId: string; ext: string }) => {
     return `private/bookings/${entityId}/booking/${crypto.randomUUID()}.${ext}`;
+  },
+
+  invoice: ({ entityId, ext }: { entityId: string; ext: string }) => {
+    return `private/invoices/${entityId}/invoice/${crypto.randomUUID()}.${ext}`;
   },
 };
 
