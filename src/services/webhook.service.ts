@@ -2,6 +2,7 @@ import crypto from "crypto";
 import Razorpay from "razorpay";
 import adminDB from "../lib/prisma/admin-db.ts";
 import redis from "../lib/redis/redis-cache.ts";
+import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -54,7 +55,9 @@ export async function processWebhookEvent(
   }
 }
 
-async function handleOrderPaid(payload: Record<string, any>): Promise<{
+async function handleOrderPaid(
+  payload: Record<string, any>,
+): Promise<{
   status: "processed";
   message: string;
 }> {
@@ -140,10 +143,22 @@ async function handleOrderPaid(payload: Record<string, any>): Promise<{
     });
   });
 
+  try {
+    await rabbitmq({
+      msg: JSON.stringify({ bookingId, paymentId }),
+      exchange: "tribel.events",
+      routingKey: "invoice",
+    });
+  } catch (err) {
+    console.error("Failed to emit invoice event for booking", bookingId, err);
+  }
+
   return { status: "processed", message: "Payment captured successfully" };
 }
 
-async function handlePaymentFailed(payload: Record<string, any>): Promise<{
+async function handlePaymentFailed(
+  payload: Record<string, any>,
+): Promise<{
   status: "processed";
   message: string;
 }> {
