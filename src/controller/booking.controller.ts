@@ -354,6 +354,12 @@ export const getUserBookings = asyncHandler(async (req, res) => {
           },
         },
         createdAt: true,
+        invoiceId: true,
+        invoice: {
+          select: {
+            status: true,
+          },
+        },
         property: {
           select: {
             id: true,
@@ -504,6 +510,12 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
           },
         },
         createdAt: true,
+        invoiceId: true,
+        invoice: {
+          select: {
+            status: true,
+          },
+        },
         property: {
           select: {
             id: true,
