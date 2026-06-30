@@ -141,14 +141,15 @@ export const createBooking = asyncHandler(async (req, res) => {
 
     if (paymentMode == "OFFLINE") {
       await rabbitmq({
-        msg: JSON.stringify({
-          title: "Payment Confirmed",
-          email: req.user.email,
-          body: `Payment of ₹${bookingCreated.booking.totalPrice} for booking ${bookingCreated.booking.id} confirmed.`,
-          invoice: bookingCreated.booking.id,
-        }),
+        msg: JSON.stringify({ bookingId: bookingCreated.booking.id }),
         exchange: "tribel.events",
         routingKey: "invoice",
+      });
+
+      await rabbitmq({
+        msg: JSON.stringify({ bookingId: bookingCreated.booking.id }),
+        exchange: "tribel.events",
+        routingKey: "email",
       });
     }
 
