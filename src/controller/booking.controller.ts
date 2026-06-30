@@ -45,7 +45,7 @@ export const createBooking = asyncHandler(async (req, res) => {
     }
 
     const bookingCreated = await prisma.$transaction(
-      async (tx) => {
+      async (tx: typeof prisma) => {
         if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
         await tx.$executeRaw`
@@ -208,7 +208,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 });
 
 export const cancelAdminBooking = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
   const { bookingId } = req.body;
 
   if (!propertyId || !bookingId)
@@ -382,7 +382,7 @@ export const getUserBookings = asyncHandler(async (req, res) => {
 });
 
 export const getBookingsForAdmin = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
   let page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   let skip = (page - 1) * limit;
@@ -545,7 +545,7 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
 
 export const updateUserBooking = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.body;
-  const { bookingId } = req.params;
+  const { bookingId } = req.params as { bookingId: string };
 
   if (!endDate || !startDate) {
     throw new ApiError("Start and end date is required", 400);
@@ -814,7 +814,7 @@ export const getAllBooking = asyncHandler(async (req, res) => {
 });
 
 export const getBookingDetails = asyncHandler(async (req, res) => {
-  const { bookingId } = req.body;
+  const { bookingId } = req.params as { bookingId: string };
 
   const securedDB = getSecuredClient({
     userId: req.user.id,
