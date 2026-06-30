@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { acquireLock, releaseLock } from "../lib/redis/redis-lock.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
+import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
   const { propertyId, roomTemplateId, startDate, endDate, paymentMode } =
@@ -138,6 +139,19 @@ export const createBooking = asyncHandler(async (req, res) => {
       },
     );
 
+    if (paymentMode == "OFFLINE") {
+      await rabbitmq({
+        msg: JSON.stringify({
+          title: "Payment Confirmed",
+          email: req.user.email,
+          body: `Payment of ₹${bookingCreated.booking.totalPrice} for booking ${bookingCreated.booking.id} confirmed.`,
+          invoice: bookingCreated.booking.id,
+        }),
+        exchange: "tribel.events",
+        routingKey: "invoice",
+      });
+    }
+
     await client.del(`roomTemplateDetail:${roomTemplateId}`);
 
     return res
@@ -208,7 +222,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 });
 
 export const cancelAdminBooking = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
   const { bookingId } = req.body;
 
   if (!propertyId || !bookingId)
@@ -288,10 +302,10 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
 });
 
 export const getUserBookings = asyncHandler(async (req, res) => {
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   limit = Math.min(Math.max(limit, 1), 50);
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
   if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
@@ -340,6 +354,12 @@ export const getUserBookings = asyncHandler(async (req, res) => {
           },
         },
         createdAt: true,
+        invoiceId: true,
+        invoice: {
+          select: {
+            status: true,
+          },
+        },
         property: {
           select: {
             id: true,
@@ -382,10 +402,10 @@ export const getUserBookings = asyncHandler(async (req, res) => {
 });
 
 export const getBookingsForAdmin = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
-  let page = parseInt(req.query.page as string) || 1;
+  const { propertyId } = req.params as { propertyId: string };
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!propertyId) {
@@ -490,6 +510,12 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
           },
         },
         createdAt: true,
+        invoiceId: true,
+        invoice: {
+          select: {
+            status: true,
+          },
+        },
         property: {
           select: {
             id: true,
@@ -545,7 +571,7 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
 
 export const updateUserBooking = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.body;
-  const { bookingId } = req.params;
+  const { bookingId } = req.params as { bookingId: string };
 
   if (!endDate || !startDate) {
     throw new ApiError("Start and end date is required", 400);
@@ -676,9 +702,9 @@ export const updateUserBooking = asyncHandler(async (req, res) => {
 });
 
 export const getAllBooking = asyncHandler(async (req, res) => {
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!req.user?.id) {
@@ -814,7 +840,7 @@ export const getAllBooking = asyncHandler(async (req, res) => {
 });
 
 export const getBookingDetails = asyncHandler(async (req, res) => {
-  const { bookingId } = req.body;
+  const { bookingId } = req.params as { bookingId: string };
 
   const securedDB = getSecuredClient({
     userId: req.user.id,

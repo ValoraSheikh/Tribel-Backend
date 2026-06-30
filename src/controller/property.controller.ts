@@ -155,7 +155,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
     contact_phone,
   } = req.body;
 
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
 
   if (!propertyId) {
     throw new ApiError("Tenant and Property ID is required", 400);
@@ -288,7 +288,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
 });
 
 export const deleteProperty = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
 
   if (!propertyId) {
     throw new ApiError("Tenant and Property ID is required", 400);
@@ -354,9 +354,9 @@ export const deleteProperty = asyncHandler(async (req, res) => {
 });
 
 export const getAdminProperties = asyncHandler(async (req, res) => {
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!req.user?.id) {
@@ -454,7 +454,7 @@ export const getAdminProperties = asyncHandler(async (req, res) => {
 });
 
 export const getPropertyDetail = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
 
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
@@ -538,17 +538,17 @@ export const getPropertyDetail = asyncHandler(async (req, res) => {
 });
 
 export const searchProperty = asyncHandler(async (req, res) => {
-  let { property } = req.query;
-  let page = parseInt(req.query.page as string) || 1;
+  const { property } = req.query;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!property || typeof property !== "string" || !property.trim()) {
     throw new ApiError("Input required to search properties", 400);
   }
 
-  let words = property.trim().split(/\s+/);
+  const words = property.trim().split(/\s+/);
 
   const [properties, totalProperties] = await prisma.$transaction([
     prisma.property.findMany({
@@ -641,10 +641,10 @@ export const searchProperty = asyncHandler(async (req, res) => {
 });
 
 export const findPropertyOnLocation = asyncHandler(async (req, res) => {
-  const { latitude, longitude, city } = req.body;
-  let page = parseInt(req.query.page as string) || 1;
+  const { city } = req.body;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   const properties = await prisma.property.findMany({
@@ -696,7 +696,7 @@ export const findPropertyOnLocation = asyncHandler(async (req, res) => {
 });
 
 export const getBookingData = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
 
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);

@@ -1,4 +1,4 @@
-import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
+import { ApiResponse, asyncHandler } from "../lib/index.ts";
 import { deleteObject, putObject } from "../services/s3.service.ts";
 import { generateKey, type UploadEntity } from "../utils/s3keys.ts";
 

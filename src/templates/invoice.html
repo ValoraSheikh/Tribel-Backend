@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 13px;
+                color: #1a1a1a;
+                padding: 40px 50px;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+                border-bottom: 2px solid #1a1a1a;
+            }
+            .header-left h1 {
+                font-size: 22px;
+                margin-bottom: 4px;
+            }
+            .header-left p {
+                color: #555;
+                font-size: 12px;
+            }
+            .header-right {
+                text-align: right;
+            }
+            .header-right h2 {
+                font-size: 28px;
+                font-weight: 700;
+                letter-spacing: 2px;
+                color: #333;
+            }
+            .header-right .invoice-no {
+                font-size: 14px;
+                font-weight: 600;
+                color: #333;
+                margin-top: 4px;
+            }
+            .header-right .date {
+                font-size: 12px;
+                color: #666;
+            }
+
+            .section {
+                margin-bottom: 24px;
+            }
+            .section-title {
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                color: #888;
+                letter-spacing: 1px;
+                margin-bottom: 6px;
+            }
+            .info-grid {
+                display: flex;
+                gap: 40px;
+            }
+            .info-block {
+                flex: 1;
+            }
+            .info-block .name {
+                font-weight: 700;
+                font-size: 14px;
+                margin-bottom: 2px;
+            }
+            .info-block .detail {
+                font-size: 12px;
+                color: #555;
+                line-height: 1.5;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }
+            thead th {
+                background: #f5f5f5;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #666;
+                text-align: left;
+                padding: 10px 12px;
+                border-bottom: 2px solid #ddd;
+            }
+            thead th.right {
+                text-align: right;
+            }
+            tbody td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #eee;
+                font-size: 13px;
+            }
+            tbody td.right {
+                text-align: right;
+            }
+            .item-desc {
+                font-weight: 600;
+            }
+            .item-meta {
+                font-size: 11px;
+                color: #888;
+            }
+
+            .totals {
+                margin-top: 10px;
+                margin-left: auto;
+                width: 280px;
+            }
+            .totals .row {
+                display: flex;
+                justify-content: space-between;
+                padding: 6px 0;
+                font-size: 13px;
+            }
+            .totals .row.total {
+                border-top: 2px solid #1a1a1a;
+                font-weight: 700;
+                font-size: 15px;
+                margin-top: 4px;
+                padding-top: 10px;
+            }
+
+            .footer {
+                margin-top: 50px;
+                padding-top: 16px;
+                border-top: 1px solid #ddd;
+                text-align: center;
+                font-size: 11px;
+                color: #999;
+            }
+            .footer .gst {
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="header-left">
+                <h1>{{tenantName}}</h1>
+                <p>{{propertyTitle}}</p>
+                <p>{{propertyAddress}}</p>
+                <p>
+                    {{propertyCity}}, {{propertyState}} {{propertyPostalCode}},
+                    {{propertyCountry}}
+                </p>
+                {{#gstin}}
+                <p style="margin-top: 4px; font-weight: 600">
+                    GSTIN: {{gstin}}
+                </p>
+                {{/gstin}}
+            </div>
+            <div class="header-right">
+                <h2>TAX INVOICE</h2>
+                <div class="invoice-no">{{invoiceNo}}</div>
+                <div class="date">Date: {{invoiceDate}}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="info-grid">
+                <div class="info-block">
+                    <div class="section-title">Billed To</div>
+                    <div class="name">{{guestName}}</div>
+                    <div class="detail">{{guestEmail}}</div>
+                    {{#guestPhone}}
+                    <div class="detail">{{guestPhone}}</div>
+                    {{/guestPhone}}
+                </div>
+                <div class="info-block">
+                    <div class="section-title">Booking Details</div>
+                    <div class="detail">
+                        <strong>Booking ID:</strong> {{bookingId}}
+                    </div>
+                    <div class="detail">
+                        <strong>Check-in:</strong> {{checkIn}}
+                    </div>
+                    <div class="detail">
+                        <strong>Check-out:</strong> {{checkOut}}
+                    </div>
+                    <div class="detail">
+                        <strong>Payment Mode:</strong> {{paymentMode}}
+                    </div>
+                    <div class="detail">
+                        <strong>Payment ID:</strong> {{paymentId}}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="right">Amount ({{currency}})</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="item-desc">Room Booking</div>
+                        <div class="item-meta">{{checkIn}} to {{checkOut}}</div>
+                    </td>
+                    <td class="right">{{subtotal}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="row">
+                <span>Subtotal</span>
+                <span>{{currencySymbol}}{{subtotal}}</span>
+            </div>
+            <div class="row">
+                <span>Tax (0%)</span>
+                <span>{{currencySymbol}}0.00</span>
+            </div>
+            <div class="row total">
+                <span>Total</span>
+                <span>{{currencySymbol}}{{total}}</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p class="gst">
+                This is a computer-generated invoice and does not require a
+                signature.
+            </p>
+            <p>
+                {{tenantName}} &bull; {{propertyTitle}} &bull;
+                {{propertyContact}}
+            </p>
+        </div>
+    </body>
+</html>

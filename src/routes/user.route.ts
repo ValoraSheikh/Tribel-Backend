@@ -9,7 +9,6 @@ import {
 import pkg from "express-openid-connect";
 import {
   updateUserValidation,
-  userValidation,
 } from "../middleware/validation.middleware.ts";
 import {
   publicGetRateLimit,

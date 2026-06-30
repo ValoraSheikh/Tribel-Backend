@@ -65,7 +65,7 @@ describe("Integration: Booking Controller Suite", () => {
   };
 
   const executeControllerAndWait = (
-    controllerFn: Function,
+    controllerFn: (...args: unknown[]) => unknown,
     req: any,
     res: any,
     next: any

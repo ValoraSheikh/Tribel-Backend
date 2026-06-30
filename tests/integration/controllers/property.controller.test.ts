@@ -52,7 +52,7 @@ describe("Integration: Property Controller Suite", () => {
   };
 
   const executeControllerAndWait = (
-    controllerFn: Function,
+    controllerFn: (...args: unknown[]) => unknown,
     req: any,
     res: any,
     next: any,

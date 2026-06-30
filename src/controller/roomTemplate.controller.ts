@@ -4,10 +4,8 @@ import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 
-type BedPayload = Promise<{ roomId: string; bedNo: number }[]>;
-
 export const createRoomTemplate = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
   const {
     title,
     description,
@@ -186,7 +184,7 @@ export const createRoomTemplate = asyncHandler(async (req, res) => {
 });
 
 export const getRoomTemplates = asyncHandler(async (req, res) => {
-  const { propertyId } = req.params;
+  const { propertyId } = req.params as { propertyId: string };
 
   if (!propertyId) {
     throw new ApiError("Property ID is required", 400);
@@ -243,7 +241,7 @@ export const getRoomTemplates = asyncHandler(async (req, res) => {
 });
 
 export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
-  const { roomTemplateId } = req.params;
+  const { roomTemplateId } = req.params as { roomTemplateId: string };
 
   const roomTemplateDetailCache = await client.get(
     `roomTemplateDetail:${roomTemplateId}`,
@@ -369,7 +367,7 @@ export const getRoomTemplateDetail = asyncHandler(async (req, res) => {
 });
 
 export const updateRoomTemplate = asyncHandler(async (req, res) => {
-  const { roomTemplateId, propertyId } = req.params;
+  const { roomTemplateId, propertyId } = req.params as { roomTemplateId: string; propertyId: string };
   const { title, description, pricePerBed, type, amenities, image } = req.body;
 
   if (!roomTemplateId || !propertyId) {
@@ -494,7 +492,7 @@ export const updateRoomTemplate = asyncHandler(async (req, res) => {
 });
 
 export const deleteRoomTemplate = asyncHandler(async (req, res) => {
-  const { roomTemplateId, propertyId } = req.params;
+  const { roomTemplateId, propertyId } = req.params as { roomTemplateId: string; propertyId: string };
 
   if (!roomTemplateId || !propertyId) {
     throw new ApiError("Room Template and Property ID is required", 400);

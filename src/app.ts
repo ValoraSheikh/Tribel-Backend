@@ -16,6 +16,7 @@ import roomTemplateRouter from "./routes/roomTemplate.route.ts";
 import bookingRouter from "./routes/booking.route.ts";
 import uploadRouter from "./routes/upload.route.ts"
 import paymentRouter from "./routes/razorpay.route.ts";
+import invoiceRouter from "./routes/invoice.route.ts";
 import client from "./lib/redis/redis-cache.ts";
 import type { AuthUser } from "./controller/user.controller.ts";
 
@@ -176,5 +177,6 @@ app.use("/api/v1/p/:propertyId/roomTemplate", roomTemplateRouter);
 app.use("/api/v1/booking", bookingRouter);
 app.use("/api/v1/uploads", uploadRouter);
 app.use("/api/v1/payment", paymentRouter);
+app.use("/api/v1/invoice", invoiceRouter);
 
 export { app };
