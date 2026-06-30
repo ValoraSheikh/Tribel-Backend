@@ -1,7 +1,6 @@
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
-import redisClient from "../lib/redis/redis.ts";
 import { deleteObject } from "../services/s3.service.ts";
 
 export type AuthUser = {

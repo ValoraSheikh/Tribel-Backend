@@ -1,9 +1,4 @@
-import express, {
-  type ErrorRequestHandler,
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
+import type { NextFunction, Request, Response } from "express";
 import dotenv from "dotenv";
 import { app } from "./app.ts";
 

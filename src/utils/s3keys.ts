@@ -1,5 +1,3 @@
-import { InventoryIncludedObjectVersions } from "@aws-sdk/client-s3";
-
 type keyParams = { entityId: string; ext: string };
 
 export const generateKey = {
