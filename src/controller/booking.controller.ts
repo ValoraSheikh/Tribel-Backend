@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { acquireLock, releaseLock } from "../lib/redis/redis-lock.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
+import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 
 export const createBooking = asyncHandler(async (req, res) => {
   const { propertyId, roomTemplateId, startDate, endDate, paymentMode } =
@@ -45,7 +46,7 @@ export const createBooking = asyncHandler(async (req, res) => {
     }
 
     const bookingCreated = await prisma.$transaction(
-      async (tx: typeof prisma) => {
+      async (tx) => {
         if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
         await tx.$executeRaw`
@@ -137,6 +138,19 @@ export const createBooking = asyncHandler(async (req, res) => {
         timeout: 10000,
       },
     );
+
+    if (paymentMode == "OFFLINE") {
+      await rabbitmq({
+        msg: JSON.stringify({
+          title: "Payment Confirmed",
+          email: req.user.email,
+          body: `Payment of ₹${bookingCreated.booking.totalPrice} for booking ${bookingCreated.booking.id} confirmed.`,
+          invoice: bookingCreated.booking.id,
+        }),
+        exchange: "tribel.events",
+        routingKey: "invoice",
+      });
+    }
 
     await client.del(`roomTemplateDetail:${roomTemplateId}`);
 
@@ -288,10 +302,10 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
 });
 
 export const getUserBookings = asyncHandler(async (req, res) => {
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
   limit = Math.min(Math.max(limit, 1), 50);
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
   if (!req.user?.id) throw new ApiError("User ID is missing", 401);
 
@@ -383,9 +397,9 @@ export const getUserBookings = asyncHandler(async (req, res) => {
 
 export const getBookingsForAdmin = asyncHandler(async (req, res) => {
   const { propertyId } = req.params as { propertyId: string };
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!propertyId) {
@@ -676,9 +690,9 @@ export const updateUserBooking = asyncHandler(async (req, res) => {
 });
 
 export const getAllBooking = asyncHandler(async (req, res) => {
-  let page = parseInt(req.query.page as string) || 1;
+  const page = parseInt(req.query.page as string) || 1;
   let limit = parseInt(req.query.limit as string) || 10;
-  let skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
   limit = Math.min(Math.max(limit, 1), 50);
 
   if (!req.user?.id) {
