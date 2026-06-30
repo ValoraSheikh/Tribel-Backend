@@ -1,4 +1,4 @@
-import emailWorker from "../workers/email.worker.ts";
+import emailWorker from "../workers/email.worker.tsx";
 import createRabbitMQConnection from "../config/connection.ts";
 
 async function emailConsumer() {
@@ -58,6 +58,7 @@ async function emailConsumer() {
             );
 
             channel.ack(msg);
+            return;
           }
 
           const result = await emailWorker({ msg: content });

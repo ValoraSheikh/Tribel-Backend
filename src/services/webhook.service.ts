@@ -149,8 +149,14 @@ async function handleOrderPaid(
       exchange: "tribel.events",
       routingKey: "invoice",
     });
+
+    await rabbitmq({
+      msg: JSON.stringify({ bookingId, paymentId }),
+      exchange: "tribel.events",
+      routingKey: "email",
+    });
   } catch (err) {
-    console.error("Failed to emit invoice event for booking", bookingId, err);
+    console.error("Failed to emit events for booking", bookingId, err);
   }
 
   return { status: "processed", message: "Payment captured successfully" };
