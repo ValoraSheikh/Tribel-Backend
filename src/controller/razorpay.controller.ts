@@ -201,21 +201,6 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     return payment;
   });
 
-  // try {
-  //   await rabbitmq({
-  //     msg: JSON.stringify({
-  //       title: "Payment Confirmed",
-  //       email: req.user.email,
-  //       body: `Payment of ₹${booking.totalPrice} for booking ${bookingId} confirmed.`,
-  //       invoice: bookingId,
-  //     }),
-  //     exchange: "tribel.events",
-  //     routingKey: "invoice",
-  //   });
-  // } catch {
-  //   console.error("Failed to emit invoice event for booking", bookingId);
-  // }
-
   res.status(200).json(
     new ApiResponse(
       {
