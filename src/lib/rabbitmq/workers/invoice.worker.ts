@@ -94,11 +94,11 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
     throw new Error(`Property ${booking.propertyId} has no tenant`);
   }
 
-  const payment = await adminDB.payment.findUnique({
-    where: { id: paymentId },
-  });
+  const payment = paymentId
+    ? await adminDB.payment.findUnique({ where: { id: paymentId } })
+    : null;
 
-  if (!payment) {
+  if (paymentId && !payment) {
     throw new Error(`Payment ${paymentId} not found`);
   }
 
@@ -128,7 +128,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
     guestEmail: guest.email,
     guestPhone: guest.phoneNo ?? "",
     bookingId: booking.id,
-    paymentId: payment.id,
+    paymentId: payment?.id ?? "",
     checkIn: formatDate(booking.startDate),
     checkOut: formatDate(booking.endDate),
     paymentMode: booking.paymentMode,
@@ -169,7 +169,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
       where: { bookingId },
       create: {
         bookingId,
-        paymentId,
+        paymentId: paymentId ?? null,
         invoiceNo,
         subtotal,
         taxAmount: 0,
@@ -178,7 +178,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
         status: "GENERATED",
       },
       update: {
-        paymentId,
+        paymentId: paymentId ?? null,
         invoiceNo,
         subtotal,
         taxAmount: 0,
