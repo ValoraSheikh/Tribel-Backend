@@ -10,7 +10,7 @@ class ApiError extends Error {
     this.status = `${statusCode}`.startsWith("4") ? "fail" : "error";
     this.isOperational = true;
 
-    Error.captureStackTrace?.(this, this.constructor as unknown as Function);
+    Error.captureStackTrace?.(this, this.constructor as unknown as new (...args: never[]) => object);
   }
 }
 
