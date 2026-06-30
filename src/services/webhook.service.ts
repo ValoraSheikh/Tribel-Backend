@@ -133,7 +133,7 @@ async function handleOrderPaid(
       },
     });
 
-    await tx.booking.updateMany({
+    await tx.booking.update({
       where: { id: bookingId, paymentStatus: "PENDING" },
       data: {
         paymentStatus: "PAID",
@@ -266,7 +266,7 @@ async function handlePaymentFailed(
       });
     }
 
-    await tx.booking.updateMany({
+    await tx.booking.update({
       where: { id: bookingId, paymentStatus: "PENDING" },
       data: { paymentStatus: "FAILED" },
     });
