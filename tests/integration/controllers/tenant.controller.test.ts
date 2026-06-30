@@ -50,7 +50,7 @@ describe("Integration: Tenant Controller Suite", () => {
   };
 
   const executeControllerAndWait = (
-    controllerFn: Function,
+    controllerFn: (...args: unknown[]) => unknown,
     req: any,
     res: any,
     next: any,
@@ -224,7 +224,7 @@ describe("Integration: Tenant Controller Suite", () => {
         },
       });
 
-      const user1 = await testDB.user.create({
+      const _user1 = await testDB.user.create({
         data: {
           auth0Id: "auth0|t1",
           email: "t1@test.com",
@@ -235,7 +235,7 @@ describe("Integration: Tenant Controller Suite", () => {
         },
       });
 
-      const user2 = await testDB.user.create({
+      const _user2 = await testDB.user.create({
         data: {
           auth0Id: "auth0|t2",
           email: "t2@test.com",

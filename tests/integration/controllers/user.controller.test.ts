@@ -5,7 +5,6 @@ import {
   updateUserProfile,
   deleteUser,
 } from "../../../src/controller/user.controller.ts";
-import { ApiError } from "../../../src/lib/index.ts";
 import testDB from "../../setup.ts";
 
 // 1. MOCK REDIS SO IT ALWAYS HITS THE DATABASE
@@ -66,7 +65,7 @@ describe("Integration: User Controller Suite", () => {
   };
 
   const executeControllerAndWait = (
-    controllerFn: Function,
+    controllerFn: (...args: unknown[]) => unknown,
     req: any,
     res: any,
     next: any,
