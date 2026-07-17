@@ -31,7 +31,7 @@ vi.mock("../../../src/lib/index.ts", async () => {
 vi.mock("../../../src/lib/prisma/db.ts", () => ({
   __esModule: true,
   default: {
-    tenant: { create: vi.fn(), findFirst: vi.fn() },
+    tenant: { create: vi.fn(), findUnique: vi.fn() },
     user: { findFirst: vi.fn() },
   },
 }));
@@ -109,7 +109,7 @@ describe("Tenant Controller", () => {
     });
 
     test("should throw 401 if user already has a tenant", async () => {
-      mockSecuredDb.user.findUnique.mockResolvedValue({
+      mockSecuredDb.user.update.mockResolvedValue({
         id: "user-123",
         tenant: { id: "existing-tenant" },
       });
@@ -167,7 +167,7 @@ describe("Tenant Controller", () => {
         description: "New Description",
       };
 
-      (prisma.tenant.findFirst as any).mockResolvedValue({
+      (prisma.tenant.findUnique as any).mockResolvedValue({
         id: "tenant-99",
         userId: "user-123",
       });
@@ -177,17 +177,19 @@ describe("Tenant Controller", () => {
 
       await updateTenant(mockReq, mockRes, mockNext);
 
-      expect(prisma.tenant.findFirst).toHaveBeenCalledWith({
+      expect(prisma.tenant.findUnique).toHaveBeenCalledWith({
         where: { userId: "user-123" },
       });
 
-      expect(mockSecuredDb.tenant.update).toHaveBeenCalledWith({
-        where: { userId: "user-123" },
-        data: expect.objectContaining({
-          name: "Zappotel Updated",
-          description: "New Description",
+      expect(mockSecuredDb.tenant.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "user-123" },
+          data: expect.objectContaining({
+            name: "Zappotel Updated",
+            description: "New Description",
+          }),
         }),
-      });
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json.mock.calls[0][0].message).toBe(
@@ -197,7 +199,7 @@ describe("Tenant Controller", () => {
     });
 
     test("should throw 404 if tenant is not found", async () => {
-      (prisma.tenant.findFirst as any).mockResolvedValue(null);
+      (prisma.tenant.findUnique as any).mockResolvedValue(null);
 
       await updateTenant(mockReq, mockRes, mockNext);
 
