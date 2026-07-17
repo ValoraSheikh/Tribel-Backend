@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { Prisma } from "../../../src/generated/prisma/client.ts";
 import {
   createRoomTemplate,
   getRoomTemplates,
@@ -288,7 +289,7 @@ describe("Integration: Room Template Controller Suite", () => {
       const updatedRooms = await testDB.room.findMany({
         where: { roomTemplateId: template.id },
       });
-      expect(updatedRooms[0]?.pricePerBed).toBe(30);
+      expect(Number(updatedRooms[0]?.pricePerBed)).toBe(30);
     });
   });
 
