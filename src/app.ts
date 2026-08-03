@@ -26,7 +26,7 @@ dotenv.config({ path: "./.env" });
 const frontendUrl =
   process.env.FRONTEND_URL ??
   (process.env.NODE_ENV === "production"
-    ? "https://www.tribel.in"
+    ? "https://tribel.in"
     : "http://localhost:3001");
 
 app.set("trust proxy", true);
