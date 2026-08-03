@@ -200,7 +200,9 @@ describe("Integration: Tenant Controller Suite", () => {
           firstName: "Bob",
           lastName: "Builder",
           role: "Admin",
+          tenant: { create: { name: "Bob Tenant", slug: "bob-tenant" } },
         },
+        include: { tenant: true },
       });
 
       const { req, res } = setupMockHttp({ id: user.id });

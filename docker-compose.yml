@@ -24,5 +24,21 @@ services:
     command: sh -c 'redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"'
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    container_name: rabbitmq-server
+    restart: unless-stopped
+    env_file:
+       - .env
+    environment:
+       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
 volumes:
   redis-data:
+  rabbitmq-data:

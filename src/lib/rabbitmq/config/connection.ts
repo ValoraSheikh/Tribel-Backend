@@ -16,6 +16,16 @@ async function createRabbitMQConnection() {
     const connection = await connect(process.env.RABBITMQ_URL || "");
     const channel = await connection.createChannel();
 
+    await channel.assertExchange("tribel.events", "direct", {
+      durable: true,
+    });
+    await channel.assertExchange("tribel.dlx", "direct", {
+      durable: true,
+    });
+    await channel.assertExchange("tribel.retry", "direct", {
+      durable: true,
+    });
+
     connection.on("error", (err) => {
       console.error("RabbitMQ connection error:", err);
     });

@@ -169,7 +169,7 @@ describe("Integration: Booking Controller Suite", () => {
 
       const { req, res } = setupMockHttp(
         { id: guest.id },
-        { propertyId: property.id, roomTemplateId: template.id, startDate: tomorrow, endDate: nextWeek },
+        { propertyId: property.id, roomTemplateId: template.id, startDate: tomorrow, endDate: nextWeek, paymentMode: "ONLINE" },
         {},
         {},
         { sub: guest.auth0Id },
@@ -206,6 +206,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: futureStart,
           endDate: futureEnd,
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -238,6 +240,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: pastStart,
           endDate: futureEnd,
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -266,6 +270,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: new Date(),
           endDate: new Date(),
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -299,6 +305,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: new Date(),
           endDate: new Date(),
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -326,6 +334,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: new Date(),
           endDate: new Date(),
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -362,6 +372,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: start,
           endDate: end,
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -408,6 +420,8 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: new Date(),
           endDate: new Date(),
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
@@ -440,14 +454,16 @@ describe("Integration: Booking Controller Suite", () => {
           startDate: new Date(),
           endDate: new Date(),
           status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          paymentMode: "ONLINE",
         },
       });
 
       const { req, res } = setupMockHttp(
         { id: guest.id },
-        { bookingId: booking.id }, // ID passed in body as per controller logic
         {},
         {},
+        { bookingId: booking.id },
         { sub: guest.auth0Id }
       );
 

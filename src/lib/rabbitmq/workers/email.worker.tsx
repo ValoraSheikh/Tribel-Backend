@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { render } from "@react-email/components";
-import adminDB from "../../prisma/admin-db.ts";
+import { getSecuredClient } from "../../prisma/prisma-rls.ts";
 import { getObject } from "../../../services/s3.service.ts";
 import { BookingConfirmationEmail } from "../../../emails/booking-confirmation.tsx";
 import type { Emaildata } from "../config/types.ts";
@@ -16,9 +16,16 @@ function formatDate(date: Date): string {
 }
 
 async function emailWorker({ msg }: { msg: Emaildata }) {
-  const { bookingId, paymentId } = msg;
+  const { bookingId, paymentId, userId, auth0Id, tenantId } = msg;
 
-  const booking = await adminDB.booking.findUnique({
+  const securedDB = getSecuredClient({
+    userId,
+    tenantId,
+    role: "",
+    auth0Id,
+  });
+
+  const booking = await securedDB.booking.findUnique({
     where: { id: bookingId },
     include: {
       guest: true,

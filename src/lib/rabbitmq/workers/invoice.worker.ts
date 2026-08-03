@@ -2,7 +2,7 @@ import puppeteer from "puppeteer";
 import { readFile } from "fs/promises";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import adminDB from "../../prisma/admin-db.ts";
+import { getSecuredClient } from "../../prisma/prisma-rls.ts";
 import { uploadPdfBuffer } from "../../../services/s3.service.ts";
 import { generateKey } from "../../../utils/s3keys.ts";
 import type { InvoiceData } from "../config/types.ts";
@@ -24,12 +24,15 @@ function formatDate(date: Date): string {
   return `${d}/${m}/${y}`;
 }
 
-async function generateInvoiceNo(): Promise<string> {
+async function generateInvoiceNo(
+  securedDB: ReturnType<typeof getSecuredClient>,
+  tenantId: string,
+): Promise<string> {
   const today = new Date();
   const datePart = today.toISOString().slice(0, 10).replace(/-/g, "");
 
-  const latest = await adminDB.invoice.findFirst({
-    where: { invoiceNo: { startsWith: `INV-${datePart}-` } },
+  const latest = await securedDB.invoice.findFirst({
+    where: { invoiceNo: { startsWith: `INV-${tenantId}-${datePart}-` } },
     orderBy: { invoiceNo: "desc" },
     select: { invoiceNo: true },
   });
@@ -43,7 +46,7 @@ async function generateInvoiceNo(): Promise<string> {
     }
   }
 
-  return `INV-${datePart}-${counter.toString().padStart(5, "0")}`;
+  return `INV-${tenantId}-${datePart}-${counter.toString().padStart(5, "0")}`;
 }
 
 function renderTemplate(
@@ -63,9 +66,16 @@ function renderTemplate(
 }
 
 async function invoiceWorker({ msg }: { msg: InvoiceData }) {
-  const { bookingId, paymentId } = msg;
+  const { bookingId, paymentId, userId, auth0Id, tenantId } = msg;
 
-  const existing = await adminDB.invoice.findUnique({
+  const securedDB = getSecuredClient({
+    userId,
+    tenantId,
+    role: "",
+    auth0Id,
+  });
+
+  const existing = await securedDB.invoice.findUnique({
     where: { bookingId },
   });
   if (existing?.status === "GENERATED") {
@@ -76,7 +86,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
     };
   }
 
-  const booking = await adminDB.booking.findUnique({
+  const booking = await securedDB.booking.findUnique({
     where: { id: bookingId },
     include: {
       guest: true,
@@ -95,7 +105,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
   }
 
   const payment = paymentId
-    ? await adminDB.payment.findUnique({ where: { id: paymentId } })
+    ? await securedDB.payment.findUnique({ where: { id: paymentId } })
     : null;
 
   if (paymentId && !payment) {
@@ -106,7 +116,9 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
   const property = booking.property;
   const tenant = property.tenant;
 
-  const invoiceNo = await generateInvoiceNo();
+  const effectiveTenantId = tenantId || tenant.id;
+
+  const invoiceNo = await generateInvoiceNo(securedDB, effectiveTenantId);
   const invoiceDate = formatDate(new Date());
   const subtotal = Number(booking.totalPrice);
 
@@ -164,7 +176,7 @@ async function invoiceWorker({ msg }: { msg: InvoiceData }) {
 
   await uploadPdfBuffer({ key: s3Key, buffer: pdfBuffer });
 
-  const invoice = await adminDB.$transaction(async (tx) => {
+  const invoice = await securedDB.$transaction(async (tx) => {
     const inv = await tx.invoice.upsert({
       where: { bookingId },
       create: {

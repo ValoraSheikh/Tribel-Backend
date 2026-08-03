@@ -1,13 +1,8 @@
 import crypto from "crypto";
-import Razorpay from "razorpay";
-import adminDB from "../lib/prisma/admin-db.ts";
+import prisma from "../lib/prisma/db.ts";
+import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import redis from "../lib/redis/redis-cache.ts";
 import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
 
 const WEBHOOK_EVENT_TTL = 60 * 60 * 24 * 7;
 
@@ -28,6 +23,27 @@ async function isDuplicateEvent(eventId: string): Promise<boolean> {
   const key = `webhook:event:${eventId}`;
   const result = await redis.set(key, "1", "EX", WEBHOOK_EVENT_TTL, "NX");
   return result === null;
+}
+
+interface WebhookContext {
+  userId: string;
+  auth0Id: string;
+  tenantId: string;
+}
+
+function extractContextFromNotes(
+  notes: Record<string, any> | undefined,
+): WebhookContext | null {
+  if (!notes) return null;
+  const { userId, auth0Id, tenantId } = notes;
+  if (userId && auth0Id) {
+    return {
+      userId: String(userId),
+      auth0Id: String(auth0Id),
+      tenantId: String(tenantId || ""),
+    };
+  }
+  return null;
 }
 
 export async function processWebhookEvent(
@@ -71,6 +87,7 @@ async function handleOrderPaid(
 
   const orderId = orderEntity.id;
   const paymentId = paymentEntity.id;
+  const bookingId = orderEntity.receipt;
   const amount = paymentEntity.amount / 100;
   const currency = paymentEntity.currency || "INR";
 
@@ -79,40 +96,39 @@ async function handleOrderPaid(
     return { status: "processed", message: "Missing order_id or payment_id" };
   }
 
-  let bookingId: string;
-  let guestId: string;
+  if (!bookingId) {
+    console.error(`Order ${orderId} has no receipt`);
+    return { status: "processed", message: "Order has no receipt" };
+  }
 
-  const existingPayment = await adminDB.payment.findUnique({
+  const context = extractContextFromNotes(paymentEntity.notes ?? orderEntity.notes);
+  if (!context) {
+    console.error(`Missing webhook context for order ${orderId}`);
+    return { status: "processed", message: "Missing webhook context" };
+  }
+
+  const { userId, tenantId, auth0Id } = context;
+  const securedDB = getSecuredClient({
+    userId,
+    tenantId,
+    role: "",
+    auth0Id,
+  });
+
+  const existingPayment = await prisma.payment.findUnique({
     where: { razorpayOrderId: orderId },
   });
 
-  if (existingPayment) {
-    bookingId = existingPayment.bookingId;
-    guestId = existingPayment.guestId;
-  } else {
-    bookingId = orderEntity.receipt;
-    if (!bookingId) {
-      console.error(`Order ${orderId} has no receipt`);
-      return { status: "processed", message: "Order has no receipt" };
-    }
-
-    const booking = await adminDB.booking.findUnique({
-      where: { id: bookingId },
-      select: { guestId: true },
-    });
-    guestId = booking?.guestId || "";
-    if (!guestId) {
-      console.error(`Booking ${bookingId} not found for order.paid`);
-      return { status: "processed", message: "Booking not found" };
-    }
+  if (existingPayment?.status === "PAID") {
+    return { status: "processed", message: "Payment already captured" };
   }
 
-  await adminDB.$transaction(async (tx) => {
+  await securedDB.$transaction(async (tx) => {
     await tx.payment.upsert({
       where: { razorpayOrderId: orderId },
       create: {
         bookingId,
-        guestId,
+        guestId: userId,
         provider: "RAZORPAY",
         status: "PAID",
         amount,
@@ -144,14 +160,15 @@ async function handleOrderPaid(
   });
 
   try {
+    const msg = { bookingId, paymentId, userId, auth0Id, tenantId };
     await rabbitmq({
-      msg: JSON.stringify({ bookingId, paymentId }),
+      msg: JSON.stringify(msg),
       exchange: "tribel.events",
       routingKey: "invoice",
     });
 
     await rabbitmq({
-      msg: JSON.stringify({ bookingId, paymentId }),
+      msg: JSON.stringify(msg),
       exchange: "tribel.events",
       routingKey: "email",
     });
@@ -176,6 +193,7 @@ async function handlePaymentFailed(
 
   const orderId = paymentEntity.order_id;
   const paymentId = paymentEntity.id;
+  const bookingId = paymentEntity.notes?.bookingId;
   const amount = paymentEntity.amount / 100;
   const currency = paymentEntity.currency || "INR";
   const failureReason =
@@ -188,94 +206,63 @@ async function handlePaymentFailed(
     return { status: "processed", message: "Missing order_id or payment_id" };
   }
 
-  let bookingId: string;
-  let guestId: string;
+  if (!bookingId) {
+    console.error(`Payment ${paymentId} has no bookingId in notes`);
+    return { status: "processed", message: "Missing booking context" };
+  }
 
-  const existingPayment = await adminDB.payment.findUnique({
+  const context = extractContextFromNotes(paymentEntity.notes);
+  if (!context) {
+    console.error(`Missing webhook context for order ${orderId}`);
+    return { status: "processed", message: "Missing webhook context" };
+  }
+
+  const { userId, tenantId, auth0Id } = context;
+  const securedDB = getSecuredClient({
+    userId,
+    tenantId,
+    role: "",
+    auth0Id,
+  });
+
+  const existingPayment = await prisma.payment.findUnique({
     where: { razorpayOrderId: orderId },
   });
 
-  if (existingPayment) {
-    if (existingPayment.status === "PAID") {
-      return {
-        status: "processed",
-        message: "Payment already captured, ignoring failure",
-      };
-    }
-    bookingId = existingPayment.bookingId;
-    guestId = existingPayment.guestId;
-  } else {
-    try {
-      const razorpayOrder = await razorpay.orders.fetch(orderId);
-      const receipt = razorpayOrder.receipt;
-      if (!receipt) {
-        console.error(`Razorpay order ${orderId} has no receipt`);
-        return { status: "processed", message: "Order has no receipt" };
-      }
-      bookingId = receipt;
-
-      const booking = await adminDB.booking.findUnique({
-        where: { id: bookingId },
-        select: { guestId: true, paymentStatus: true },
-      });
-
-      if (!booking) {
-        console.error(`Booking ${bookingId} not found for payment.failed`);
-        return { status: "processed", message: "Booking not found" };
-      }
-
-      if (booking.paymentStatus === "PAID") {
-        return {
-          status: "processed",
-          message: "Booking already paid, ignoring failure",
-        };
-      }
-
-      guestId = booking.guestId;
-    } catch (err) {
-      console.error(`Failed to fetch Razorpay order ${orderId}:`, err);
-      return { status: "processed", message: "Failed to fetch Razorpay order" };
-    }
+  if (existingPayment?.status === "PAID") {
+    return {
+      status: "processed",
+      message: "Payment already captured, ignoring failure",
+    };
   }
 
-  await adminDB.$transaction(async (tx) => {
-    const currentPayment = await tx.payment.findUnique({
-      where: { razorpayOrderId: orderId },
-    });
+  await prisma.payment.upsert({
+    where: { razorpayOrderId: orderId },
+    create: {
+      bookingId,
+      guestId: userId,
+      provider: "RAZORPAY",
+      status: "FAILED",
+      amount,
+      currency,
+      razorpayOrderId: orderId,
+      razorpayPaymentId: paymentId,
+      failureReason,
+      metadata: paymentEntity.notes || {},
+    },
+    update: {
+      status: "FAILED",
+      razorpayPaymentId: paymentId,
+      failureReason,
+      amount,
+      currency,
+      metadata: paymentEntity.notes || {},
+    },
+  });
 
-    if (!currentPayment) {
-      await tx.payment.create({
-        data: {
-          bookingId,
-          guestId,
-          provider: "RAZORPAY",
-          status: "FAILED",
-          amount,
-          currency,
-          razorpayOrderId: orderId,
-          razorpayPaymentId: paymentId,
-          failureReason,
-          metadata: paymentEntity.notes || {},
-        },
-      });
-    } else if (currentPayment.status !== "PAID") {
-      await tx.payment.update({
-        where: { razorpayOrderId: orderId },
-        data: {
-          status: "FAILED",
-          razorpayPaymentId: paymentId,
-          failureReason,
-          amount,
-          currency,
-          metadata: paymentEntity.notes || {},
-        },
-      });
-    }
-
-    await tx.booking.update({
-      where: { id: bookingId, paymentStatus: "PENDING" },
-      data: { paymentStatus: "FAILED" },
-    });
+  await securedDB.booking.updateMany({
+    where: { id: bookingId, paymentStatus: "PENDING" },
+    data: { paymentStatus: "FAILED" },
   });
 
   return { status: "processed", message: "Payment failed recorded" };

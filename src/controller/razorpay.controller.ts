@@ -59,6 +59,8 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     notes: {
       bookingId: bookingId,
       userId: req.user.id,
+      auth0Id: req.oidc.user?.sub ?? "",
+      tenantId: booking.property?.tenantId ?? "",
     },
   };
 

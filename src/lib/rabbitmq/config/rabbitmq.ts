@@ -13,18 +13,6 @@ async function rabbitmq({
 }) {
   const channel = await createRabbitMQConnection();
 
-  await channel.assertExchange(exchange, "direct", {
-    durable: true,
-  });
-
-  await channel.assertExchange("tribel.dlx", "direct", {
-    durable: true,
-  });
-
-  await channel.assertExchange("tribel.retry", "direct", {
-    durable: true,
-  });
-
   channel.publish(exchange, routingKey, Buffer.from(msg), {
     persistent: true,
   });
