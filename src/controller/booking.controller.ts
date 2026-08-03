@@ -139,15 +139,27 @@ export const createBooking = asyncHandler(async (req, res) => {
       },
     );
 
+    const property = await prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    });
+
     if (paymentMode == "OFFLINE") {
+      const msg = {
+        bookingId: bookingCreated.booking.id,
+        userId: req.user.id,
+        auth0Id: req.oidc.user?.sub ?? "",
+        tenantId: property?.tenantId ?? "",
+      };
       await rabbitmq({
-        msg: JSON.stringify({ bookingId: bookingCreated.booking.id }),
+        msg: JSON.stringify(msg),
         exchange: "tribel.events",
         routingKey: "invoice",
       });
 
       await rabbitmq({
-        msg: JSON.stringify({ bookingId: bookingCreated.booking.id }),
+        msg: JSON.stringify(msg),
         exchange: "tribel.events",
         routingKey: "email",
       });
