@@ -23,6 +23,12 @@ import type { AuthUser } from "./controller/user.controller.ts";
 const app = express();
 dotenv.config({ path: "./.env" });
 
+const frontendUrl =
+  process.env.FRONTEND_URL ??
+  (process.env.NODE_ENV === "production"
+    ? "https://tribel.in"
+    : "http://localhost:3001");
+
 app.set("trust proxy", true);
 app.use(auth0middleware);
 app.use(
@@ -57,7 +63,7 @@ app.get("/logout", async (req, res, next) => {
     const isAuthenticated = req.oidc?.isAuthenticated() ?? false;
 
     if (!isAuthenticated || !req.oidc?.user) {
-      return res.redirect("http://localhost:3001");
+      return res.redirect(frontendUrl);
     }
 
     const authUser = req.oidc.user as AuthUser;
@@ -66,7 +72,7 @@ app.get("/logout", async (req, res, next) => {
     await client.del(`session:${authUser.sub}`);
 
     res.oidc.logout({
-      returnTo: "http://localhost:3001",
+      returnTo: frontendUrl,
     });
   } catch (err) {
     next(err);
@@ -106,7 +112,7 @@ app.get("/auth/bridge", async (req, res, next) => {
     const cacheUser = await client.get(`session:${auth0User.sub}`);
     if (cacheUser) {
       req.user = JSON.parse(cacheUser);
-      return res.redirect("http://localhost:3001/");
+      return res.redirect(`${frontendUrl}/`);
     }
 
     let found = await user(auth0User.sub);
@@ -129,7 +135,7 @@ app.get("/auth/bridge", async (req, res, next) => {
     );
 
     // FINAL STEP: send user back to frontend app
-    return res.redirect("http://localhost:3001/");
+    return res.redirect(`${frontendUrl}/`);
   } catch (err) {
     next(err);
   }

@@ -31,14 +31,16 @@ const config: Auth0Config = {
   session: {
     rolling: true,
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
-      domain: "localhost",
-      
+      ...(process.env.NODE_ENV === "production"
+        ? {}
+        : { domain: "localhost" }),
     },
   },
   routes: {
     logout: false,
+    callback: "/callback",
   },
 };
 
