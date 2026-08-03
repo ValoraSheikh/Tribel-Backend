@@ -32,7 +32,7 @@ const config: Auth0Config = {
     rolling: true,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Lax",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       ...(process.env.NODE_ENV === "production"
         ? {}
         : { domain: "localhost" }),
