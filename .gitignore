@@ -152,3 +152,5 @@ docker-compose.local.yml
 docker-data
 
 .commandcode
+
+AGENTS.md
