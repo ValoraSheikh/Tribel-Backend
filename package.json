@@ -9,7 +9,8 @@
     "test": "DOTENV_CONFIG_PATH=.env.test dotenv -e .env.test -- vitest run --no-file-parallelism",
     "test:integration": "DOTENV_CONFIG_PATH=.env.test dotenv -e .env.test -- vitest run",
     "type-check": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:unit": "vitest run tests/unit --no-file-parallelism"
   },
   "keywords": [],
   "author": "amansheikh",
