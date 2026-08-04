@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { Prisma } from "../../../src/generated/prisma/client.ts";
 import {
   createRoomTemplate,
   getRoomTemplates,
@@ -53,7 +52,7 @@ describe("Integration: Room Template Controller Suite", () => {
   };
 
   const executeControllerAndWait = (
-    controllerFn: (...args: unknown[]) => unknown,
+    controllerFn: (req: Request, res: Response, next: NextFunction) => void,
     req: any,
     res: any,
     next: any
