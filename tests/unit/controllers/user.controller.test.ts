@@ -151,13 +151,21 @@ describe("User Controller Tests", () => {
   });
 
   describe("logout", () => {
-    test("should call oidc.logout and return success", async () => {
+    test("should call oidc.logout without sending a second response", async () => {
       await logout(mockReq, mockRes, mockNext);
 
       expect(mockRes.oidc.logout).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalled();
-      const response = mockRes.json.mock.calls[0][0];
-      expect(response.message).toBe("User logout Successfully");
+      expect(mockRes.json).not.toHaveBeenCalled();
+    });
+
+    test("should clear user and session cache before logout redirect", async () => {
+      await logout(mockReq, mockRes, mockNext);
+
+      const redisMock = (await import("../../../src/lib/redis/redis-cache.ts"))
+        .default as any;
+      expect(redisMock.del).toHaveBeenCalledWith("user:auth0|12345");
+      expect(redisMock.del).toHaveBeenCalledWith("session:auth0|12345");
+      expect(mockRes.oidc.logout).toHaveBeenCalled();
     });
   });
 
