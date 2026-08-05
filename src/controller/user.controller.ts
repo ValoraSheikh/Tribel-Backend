@@ -78,12 +78,10 @@ export const logout = asyncHandler(async (req, res) => {
 
   const authUser = req.oidc.user as AuthUser;
 
-  res.oidc.logout();
-
   await client.del(`user:${authUser.sub}`);
   await client.del(`session:${authUser.sub}`);
 
-  return res.json(new ApiResponse({}, "User logout Successfully", 200));
+  res.oidc.logout();
 });
 
 export const updateUserProfile = asyncHandler(async (req, res) => {
