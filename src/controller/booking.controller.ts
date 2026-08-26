@@ -6,6 +6,25 @@ import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 
+const MAX_OCCUPANCY_WINDOW_DAYS = 62;
+
+const deleteOccupancyCache = async (propertyId: string) => {
+  let cursor = "0";
+  do {
+    const [nextCursor, keys] = await client.scan(
+      cursor,
+      "MATCH",
+      `Occupancy:${propertyId}:*`,
+      "COUNT",
+      100,
+    );
+    cursor = nextCursor;
+    if (keys.length > 0) {
+      await client.del(...keys);
+    }
+  } while (cursor !== "0");
+};
+
 export const createBooking = asyncHandler(async (req, res) => {
   const { propertyId, roomTemplateId, startDate, endDate, paymentMode } =
     req.body;
@@ -306,6 +325,9 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
       userId: null,
     },
   });
+
+  await client.del(`AdminBookings:${propertyId}`);
+  await deleteOccupancyCache(propertyId);
 
   if (!booking) throw new ApiError("No booking found", 404);
 
@@ -950,4 +972,306 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
         200,
       ),
     );
+});
+
+export const getOccupancy = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params as { propertyId: string };
+  const query = req.query as unknown as {
+    startDate?: Date | string;
+    endDate?: Date | string;
+  };
+
+  if (!propertyId) {
+    throw new ApiError("Property ID is missing", 400);
+  }
+
+  const now = new Date();
+  const startDate = query.startDate
+    ? new Date(query.startDate)
+    : new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const endDate = query.endDate
+    ? new Date(query.endDate)
+    : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw new ApiError("Invalid start or end date", 400);
+  }
+
+  if (startDate > endDate) {
+    throw new ApiError("Start date must be before end date", 400);
+  }
+
+  const windowMs = endDate.getTime() - startDate.getTime();
+  if (windowMs > MAX_OCCUPANCY_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+    throw new ApiError(
+      `Occupancy window cannot exceed ${MAX_OCCUPANCY_WINDOW_DAYS} days`,
+      400,
+    );
+  }
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const [user, property] = await Promise.all([
+    securedDB.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        tenant: true,
+        role: true,
+        auth0Id: true,
+        id: true,
+      },
+    }),
+
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+  ]);
+
+  if (!user || !property)
+    throw new ApiError("No user and property found with this ID", 404);
+
+  const tenant = user.tenant;
+
+  if (!tenant) {
+    throw new ApiError("Tenant not found", 404);
+  }
+
+  if (user.id !== property.adminId) {
+    throw new ApiError("Forbidden", 403);
+  }
+
+  const cacheKey = `Occupancy:${propertyId}:${startDate.toISOString()}:${endDate.toISOString()}`;
+  const cached = await client.get(cacheKey);
+  if (cached) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          JSON.parse(cached),
+          "Occupancy fetched successfully",
+          200,
+        ),
+      );
+  }
+
+  const withRLS = getSecuredClient({
+    userId: user.id,
+    tenantId: tenant.id,
+    role: user.role,
+    auth0Id: user.auth0Id,
+  });
+
+  const [bookings, beds] = await Promise.all([
+    withRLS.booking.findMany({
+      where: {
+        propertyId,
+        startDate: { lt: endDate },
+        endDate: { gt: startDate },
+      },
+      select: {
+        id: true,
+        status: true,
+        totalPrice: true,
+        startDate: true,
+        endDate: true,
+        paymentMode: true,
+        paymentStatus: true,
+        invoiceId: true,
+        invoice: {
+          select: {
+            status: true,
+          },
+        },
+        guest: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneNo: true,
+            avatar: true,
+          },
+        },
+        bed: {
+          select: {
+            id: true,
+            bedNo: true,
+            roomId: true,
+          },
+        },
+        room: {
+          select: {
+            id: true,
+            title: true,
+            roomTemplateId: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+            state: true,
+            images: true,
+          },
+        },
+      },
+      orderBy: { startDate: "asc" },
+    }),
+
+    withRLS.bed.findMany({
+      where: {
+        room: {
+          propertyId,
+        },
+      },
+      select: {
+        id: true,
+        bedNo: true,
+        room: {
+          select: {
+            id: true,
+            title: true,
+            roomTemplateId: true,
+          },
+        },
+      },
+      orderBy: [{ room: { title: "asc" } }, { bedNo: "asc" }],
+    }),
+  ]);
+
+  const payload = { bookings, beds, startDate, endDate };
+
+  await client.set(cacheKey, JSON.stringify(payload), "EX", 300);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(payload, "Occupancy fetched successfully", 200));
+});
+
+export const updateBookingStatus = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params as { propertyId: string };
+  const { bookingId, action } = req.body as {
+    bookingId: string;
+    action: "APPROVE" | "REJECT";
+  };
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const [user, property] = await Promise.all([
+    securedDB.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        tenant: true,
+        role: true,
+        auth0Id: true,
+        id: true,
+      },
+    }),
+
+    prisma.property.findUnique({
+      where: {
+        id: propertyId,
+      },
+    }),
+  ]);
+
+  if (!user || !property)
+    throw new ApiError("No user and property found with this ID", 404);
+
+  const tenant = user.tenant;
+
+  if (!tenant) {
+    throw new ApiError("Tenant not found", 404);
+  }
+
+  if (user.id !== property.adminId) {
+    throw new ApiError("You are not allowed to take this action", 403);
+  }
+
+  const withRLS = getSecuredClient({
+    userId: user.id,
+    tenantId: tenant.id,
+    role: user.role,
+    auth0Id: user.auth0Id,
+  });
+
+  const booking = await withRLS.booking.findUnique({
+    where: {
+      id: bookingId,
+    },
+    select: {
+      id: true,
+      propertyId: true,
+      status: true,
+      bedId: true,
+    },
+  });
+
+  if (!booking || booking.propertyId !== propertyId) {
+    throw new ApiError("No booking found", 404);
+  }
+
+  if (booking.status !== "PENDING") {
+    throw new ApiError(
+      "Only pending bookings can be approved or rejected",
+      400,
+    );
+  }
+
+  const newStatus = action === "APPROVE" ? "CONFIRMED" : "REJECTED";
+
+  await withRLS.$transaction([
+    withRLS.booking.update({
+      where: {
+        id: bookingId,
+      },
+      data: {
+        status: newStatus,
+      },
+    }),
+    ...(action === "REJECT"
+      ? [
+          withRLS.bed.update({
+            where: {
+              id: booking.bedId,
+            },
+            data: {
+              userId: null,
+            },
+          }),
+        ]
+      : []),
+  ]);
+
+  await client.del(`AdminBookings:${propertyId}`);
+  await deleteOccupancyCache(propertyId);
+
+  return res.status(200).json(
+    new ApiResponse(
+      { bookingId, status: newStatus },
+      action === "APPROVE"
+        ? "Booking approved successfully"
+        : "Booking rejected successfully",
+      200,
+    ),
+  );
 });
