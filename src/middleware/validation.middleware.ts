@@ -238,6 +238,32 @@ export const bookingValidation = validate(
   }),
 );
 
+export const occupancyValidation = validate(
+  z.object({
+    body: z.object({}).optional(),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({
+      startDate: z.coerce.date().optional(),
+      endDate: z.coerce.date().optional(),
+    }),
+  }),
+);
+
+export const bookingStatusValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      action: z.enum(["APPROVE", "REJECT"]),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
 export const createOrderValidation = validate(
   z.object({
     body: z.object({
