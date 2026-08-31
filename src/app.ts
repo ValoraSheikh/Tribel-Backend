@@ -8,6 +8,11 @@ import dotenv from "dotenv";
 import { createUser, user, type UserDetail } from "./lib/user.ts";
 import { loginRateLimit } from "./middleware/rate-limit.middleware.ts";
 import { auth0middleware } from "./lib/auth/auth0-utils.ts";
+import {
+  buildFrontendRedirect,
+  getSafeReturnPath,
+  normalizeFrontendOrigin,
+} from "./lib/auth/return-to.ts";
 
 import userRouter from "./routes/user.route.ts";
 import tenantRouter from "./routes/tenant.route.ts";
@@ -23,11 +28,12 @@ import type { AuthUser } from "./controller/user.controller.ts";
 const app = express();
 dotenv.config({ path: "./.env" });
 
-const frontendUrl =
+const frontendOrigin = normalizeFrontendOrigin(
   process.env.FRONTEND_URL ??
-  (process.env.NODE_ENV === "production"
-    ? "https://tribel.in"
-    : "http://localhost:3001");
+    (process.env.NODE_ENV === "production"
+      ? "https://tribel.in/discover"
+      : "http://localhost:3001/discover"),
+);
 
 app.set("trust proxy", true);
 app.use(auth0middleware);
@@ -63,7 +69,7 @@ app.get("/logout", async (req, res, next) => {
     const isAuthenticated = req.oidc?.isAuthenticated() ?? false;
 
     if (!isAuthenticated || !req.oidc?.user) {
-      return res.redirect(frontendUrl);
+      return res.redirect(frontendOrigin);
     }
 
     const authUser = req.oidc.user as AuthUser;
@@ -72,7 +78,7 @@ app.get("/logout", async (req, res, next) => {
     await client.del(`session:${authUser.sub}`);
 
     res.oidc.logout({
-      returnTo: frontendUrl,
+      returnTo: frontendOrigin,
     });
   } catch (err) {
     next(err);
@@ -95,9 +101,14 @@ app.get("/profile", (req: Request, res: Response) => {
   });
 });
 
-app.use("/auth/login", loginRateLimit, (_req, res, _next) => {
+app.use("/auth/login", loginRateLimit, (req, res, _next) => {
+  const safeReturnPath = getSafeReturnPath(req.query.returnTo);
+  const bridgeReturnTo = `/auth/bridge?returnTo=${encodeURIComponent(
+    safeReturnPath,
+  )}`;
+
   res.oidc.login({
-    returnTo: "/auth/bridge",
+    returnTo: bridgeReturnTo,
   });
 });
 
@@ -109,10 +120,13 @@ app.get("/auth/bridge", async (req, res, next) => {
 
     const auth0User = req.oidc.user as UserDetail;
 
+    const safeReturnPath = getSafeReturnPath(req.query.returnTo);
+    const finalRedirect = buildFrontendRedirect(frontendOrigin, safeReturnPath);
+
     const cacheUser = await client.get(`session:${auth0User.sub}`);
     if (cacheUser) {
       req.user = JSON.parse(cacheUser);
-      return res.redirect(`${frontendUrl}/`);
+      return res.redirect(finalRedirect);
     }
 
     let found = await user(auth0User.sub);
@@ -135,7 +149,7 @@ app.get("/auth/bridge", async (req, res, next) => {
     );
 
     // FINAL STEP: send user back to frontend app
-    return res.redirect(`${frontendUrl}/`);
+    return res.redirect(finalRedirect);
   } catch (err) {
     next(err);
   }
