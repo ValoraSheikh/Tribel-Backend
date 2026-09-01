@@ -84,6 +84,8 @@ vi.stubEnv("ISSUER_BASE_URL", "test.auth0.com");
 vi.stubEnv("AWS_REGION", "us-east-1");
 vi.stubEnv("AWS_ACCESS_KEY", "test");
 vi.stubEnv("AWS_SECRET_ACCESS_KEY", "test");
+vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_placeholder");
+vi.stubEnv("RAZORPAY_KEY_SECRET", "test-secret");
 
 const { app } = await import("../../src/app.ts");
 
