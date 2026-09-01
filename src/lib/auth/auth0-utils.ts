@@ -33,12 +33,13 @@ const config: Auth0Config = {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-      ...(process.env.NODE_ENV === "production"
-        ? {}
-        : { domain: "localhost" }),
+      ...(process.env.COOKIE_DOMAIN
+        ? { domain: process.env.COOKIE_DOMAIN }
+        : {}),
     },
   },
   routes: {
+    login: false,
     logout: false,
     callback: "/callback",
   },

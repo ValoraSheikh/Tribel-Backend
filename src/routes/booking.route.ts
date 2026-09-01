@@ -6,12 +6,18 @@ import {
   getAllBooking,
   getBookingDetails,
   getBookingsForAdmin,
+  getOccupancy,
   getUserBookings,
+  updateBookingStatus,
   updateUserBooking,
 } from "../controller/booking.controller.ts";
 import { restrictTo } from "../lib/index.ts";
 import pkg from "express-openid-connect";
-import { bookingValidation } from "../middleware/validation.middleware.ts";
+import {
+  bookingValidation,
+  bookingStatusValidation,
+  occupancyValidation,
+} from "../middleware/validation.middleware.ts";
 import {
   bookingRateLimit,
   publicGetRateLimit,
@@ -29,13 +35,29 @@ router.post(
   createBooking,
 );
 router.patch("/", requiresAuth(), bookingRateLimit, cancelBooking);
+router.get("/user", requiresAuth(), publicGetRateLimit, getUserBookings);
+router.get(
+  "/occupancy/:propertyId",
+  requiresAuth(),
+  publicGetRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  occupancyValidation,
+  getOccupancy,
+);
+router.patch(
+  "/admin/:propertyId/status",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  bookingStatusValidation,
+  updateBookingStatus,
+);
 router.patch(
   "/:bookingId",
   requiresAuth(),
   bookingRateLimit,
   updateUserBooking,
 );
-router.get("/user", requiresAuth(), publicGetRateLimit, getUserBookings);
 router.get(
   "/:propertyId",
   requiresAuth(),

@@ -20,6 +20,7 @@ vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn(),
     del: vi.fn(),
+    scan: vi.fn().mockResolvedValue(["0", []]),
   },
 }));
 
