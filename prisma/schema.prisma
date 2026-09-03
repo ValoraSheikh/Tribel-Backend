@@ -208,6 +208,9 @@ model Payment {
   razorpayRefundId  String?         @unique
   razorpaySignature String?
   offlineReference  String?
+  refundAmount      Decimal?        @db.Decimal(12, 2)
+  refundMethod      PaymentProvider?
+  refundedAt        DateTime?
   verifiedById      String?
   verifiedAt        DateTime?
   paidAt            DateTime?
