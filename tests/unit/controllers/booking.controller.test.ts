@@ -172,6 +172,8 @@ describe("Booking Controller", () => {
       const futureDate = new Date(Date.now() + 86400000);
       mockSecuredDb.booking.findUnique.mockResolvedValue({
         id: "booking-1",
+        status: "PENDING",
+        propertyId: "prop-1",
         startDate: futureDate,
         cancelledAt: null,
         guestId: "user-123",
@@ -196,6 +198,8 @@ describe("Booking Controller", () => {
 
       mockSecuredDb.booking.findUnique.mockResolvedValue({
         id: "booking-1",
+        status: "PENDING",
+        propertyId: "prop-1",
         startDate: pastDate,
       });
 
@@ -220,6 +224,14 @@ describe("Booking Controller", () => {
       (prisma.property.findUnique as any).mockResolvedValue({
         id: "prop-1",
         adminId: "user-123",
+      });
+
+      mockSecuredDb.booking.findUnique.mockResolvedValue({
+        id: "booking-1",
+        status: "CONFIRMED",
+        bedId: "bed-1",
+        paymentStatus: "PAID",
+        paymentMode: "OFFLINE",
       });
 
       mockSecuredDb.booking.update.mockResolvedValue({ id: "booking-1" });
