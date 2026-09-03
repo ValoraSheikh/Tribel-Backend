@@ -5,6 +5,16 @@ import { acquireLock, releaseLock } from "../lib/redis/redis-lock.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
 import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
+import {
+  assertAdminCancellable,
+  assertGuestCancellable,
+  assertMarkPaidAllowed,
+  assertRefundAllowed,
+  computeBookingPrice,
+  resolveRefundMethod,
+  resolveRefundStatus,
+} from "../services/booking-state.service.ts";
+import type { PaymentProvider } from "../generated/prisma/client.ts";
 
 const MAX_OCCUPANCY_WINDOW_DAYS = 62;
 
@@ -119,7 +129,11 @@ export const createBooking = asyncHandler(async (req, res) => {
             roomId: chooseBed?.roomId,
             bedId: chooseBed.id,
             guestId: req.user?.id,
-            totalPrice: chooseBed?.pricePerBed,
+            totalPrice: computeBookingPrice(
+              chooseBed.pricePerBed,
+              startDate,
+              endDate,
+            ).total,
             startDate,
             endDate,
             status: "PENDING",
@@ -220,6 +234,8 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     throw new ApiError("No booking found with this ID", 404);
   }
 
+  assertGuestCancellable(booking.status);
+
   if (booking.startDate <= new Date()) {
     throw new ApiError("Can't cancel past and ongoing booking", 400);
   }
@@ -247,6 +263,9 @@ export const cancelBooking = asyncHandler(async (req, res) => {
       userId: null,
     },
   });
+
+  await client.del(`AdminBookings:${booking.propertyId}`);
+  await deleteOccupancyCache(booking.propertyId);
 
   return res
     .status(200)
@@ -305,6 +324,26 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
     role: user?.role,
     auth0Id: user.auth0Id,
   });
+
+  const existingBooking = await withRLS.booking.findUnique({
+    where: {
+      id: bookingId,
+      propertyId: propertyId,
+    },
+    select: {
+      id: true,
+      status: true,
+      bedId: true,
+      paymentStatus: true,
+      paymentMode: true,
+    },
+  });
+
+  if (!existingBooking) {
+    throw new ApiError("No booking found", 404);
+  }
+
+  assertAdminCancellable(existingBooking.status);
 
   const booking = await withRLS.booking.update({
     where: {
@@ -1274,4 +1313,206 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
       200,
     ),
   );
+});
+
+export const markAdminPaymentPaid = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params as { propertyId: string };
+  const { bookingId, provider, reference } = req.body as {
+    bookingId: string;
+    provider?: PaymentProvider;
+    reference?: string;
+  };
+
+  if (!bookingId) throw new ApiError("Booking ID is required", 400);
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const [user, property] = await Promise.all([
+    securedDB.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, tenant: true, role: true, auth0Id: true },
+    }),
+    prisma.property.findUnique({ where: { id: propertyId } }),
+  ]);
+
+  if (!user || !property)
+    throw new ApiError("No user and property found with this ID", 404);
+
+  if (!user.tenant) throw new ApiError("Tenant not found", 404);
+  if (user.id !== property.adminId)
+    throw new ApiError("You are not allowed to take this action", 403);
+
+  const withRLS = getSecuredClient({
+    userId: user.id,
+    tenantId: user.tenant.id,
+    role: user.role,
+    auth0Id: user.auth0Id,
+  });
+
+  const booking = await withRLS.booking.findUnique({
+    where: { id: bookingId, propertyId: propertyId },
+    select: {
+      id: true,
+      guestId: true,
+      totalPrice: true,
+      paymentMode: true,
+      paymentStatus: true,
+      status: true,
+    },
+  });
+
+  if (!booking) throw new ApiError("No booking found", 404);
+
+  console.log("booking is here", booking);
+
+  assertMarkPaidAllowed(booking);
+
+  const paymentProvider: PaymentProvider =
+    provider && ["CASH", "UPI", "BANK_TRANSFER"].includes(provider)
+      ? provider
+      : "CASH";
+
+  const [, updatedBooking] = await withRLS.$transaction([
+    withRLS.payment.create({
+      data: {
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        provider: paymentProvider,
+        status: "PAID",
+        amount: booking.totalPrice,
+        offlineReference: reference ?? null,
+        verifiedById: user.id,
+        verifiedAt: new Date(),
+        paidAt: new Date(),
+      },
+    }),
+    withRLS.booking.update({
+      where: { id: booking.id },
+      data: { paymentStatus: "PAID" },
+    }),
+  ]);
+
+  await client.del(`AdminBookings:${propertyId}`);
+  await deleteOccupancyCache(propertyId);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        { bookingId: updatedBooking.id, paymentStatus: "PAID" },
+        "Payment marked as paid successfully",
+        200,
+      ),
+    );
+});
+
+export const recordAdminPaymentRefund = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params as { propertyId: string };
+  const { bookingId, amount, method, reference, razorpayRefundId } =
+    req.body as {
+      bookingId: string;
+      amount?: number;
+      method?: PaymentProvider;
+      reference?: string;
+      razorpayRefundId?: string;
+    };
+
+  if (!bookingId) throw new ApiError("Booking ID is required", 400);
+
+  const securedDB = getSecuredClient({
+    userId: req.user.id,
+    tenantId: "",
+    role: "",
+    auth0Id: req.oidc.user?.sub,
+  });
+
+  const [user, property] = await Promise.all([
+    securedDB.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, tenant: true, role: true, auth0Id: true },
+    }),
+    prisma.property.findUnique({ where: { id: propertyId } }),
+  ]);
+
+  if (!user || !property)
+    throw new ApiError("No user and property found with this ID", 404);
+
+  if (!user.tenant) throw new ApiError("Tenant not found", 404);
+  if (user.id !== property.adminId)
+    throw new ApiError("You are not allowed to take this action", 403);
+
+  const withRLS = getSecuredClient({
+    userId: user.id,
+    tenantId: user.tenant.id,
+    role: user.role,
+    auth0Id: user.auth0Id,
+  });
+
+  const booking = await withRLS.booking.findUnique({
+    where: { id: bookingId, propertyId: propertyId },
+    select: {
+      id: true,
+      totalPrice: true,
+      paymentMode: true,
+      paymentStatus: true,
+    },
+  });
+
+  if (!booking) throw new ApiError("No booking found", 404);
+
+  assertRefundAllowed(booking.paymentStatus);
+
+  const resolvedAmount = amount ?? Number(booking.totalPrice);
+  const refundStatus = resolveRefundStatus(booking, resolvedAmount);
+  const refundMethod = resolveRefundMethod(booking.paymentMode, method);
+
+  const payment = await withRLS.payment.findFirst({
+    where: { bookingId: booking.id, status: "PAID" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!payment) throw new ApiError("No paid payment found for this booking", 404);
+
+  const [, updatedBooking] = await withRLS.$transaction([
+    withRLS.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: refundStatus,
+        refundAmount: resolvedAmount,
+        refundMethod,
+        refundedAt: new Date(),
+        razorpayRefundId: razorpayRefundId ?? null,
+        offlineReference: reference ?? null,
+      },
+    }),
+    withRLS.booking.update({
+      where: { id: booking.id },
+      data: { paymentStatus: refundStatus },
+    }),
+  ]);
+
+  await client.del(`AdminBookings:${propertyId}`);
+  await deleteOccupancyCache(propertyId);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        {
+          bookingId: updatedBooking.id,
+          paymentStatus: refundStatus,
+          refundAmount: resolvedAmount,
+          refundMethod,
+        },
+        refundStatus === "REFUNDED"
+          ? "Payment refunded successfully"
+          : "Partial refund recorded successfully",
+        200,
+      ),
+    );
 });
