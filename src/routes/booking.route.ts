@@ -8,6 +8,8 @@ import {
   getBookingsForAdmin,
   getOccupancy,
   getUserBookings,
+  markAdminPaymentPaid,
+  recordAdminPaymentRefund,
   updateBookingStatus,
   updateUserBooking,
 } from "../controller/booking.controller.ts";
@@ -16,7 +18,9 @@ import pkg from "express-openid-connect";
 import {
   bookingValidation,
   bookingStatusValidation,
+  markPaidValidation,
   occupancyValidation,
+  refundValidation,
 } from "../middleware/validation.middleware.ts";
 import {
   bookingRateLimit,
@@ -84,6 +88,22 @@ router.patch(
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
   cancelAdminBooking,
+);
+router.patch(
+  "/admin/:propertyId/payment/paid",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  markPaidValidation,
+  markAdminPaymentPaid,
+);
+router.patch(
+  "/admin/:propertyId/payment/refund",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  refundValidation,
+  recordAdminPaymentRefund,
 );
 
 export default router;

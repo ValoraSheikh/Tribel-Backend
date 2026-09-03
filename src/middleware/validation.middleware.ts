@@ -264,6 +264,38 @@ export const bookingStatusValidation = validate(
   }),
 );
 
+export const markPaidValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      provider: z.enum(["CASH", "UPI", "BANK_TRANSFER"]).optional(),
+      reference: z.string().max(255).optional(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const refundValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      amount: z.number().positive().optional(),
+      method: z
+        .enum(["CASH", "UPI", "BANK_TRANSFER", "RAZORPAY"])
+        .optional(),
+      reference: z.string().max(255).optional(),
+      razorpayRefundId: z.string().max(64).optional(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
 export const createOrderValidation = validate(
   z.object({
     body: z.object({
