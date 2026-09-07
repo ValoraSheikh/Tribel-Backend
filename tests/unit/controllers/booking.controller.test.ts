@@ -12,7 +12,6 @@ import {
 import { getSecuredClient } from "../../../src/lib/prisma/prisma-rls";
 import prisma from "../../../src/lib/prisma/db";
 import { ApiError } from "../../../src/lib";
-import { acquireLock, releaseLock } from "../../../src/lib/redis/redis-lock";
 
 // --- FIXED: ADDED REDIS CACHE MOCK TO BYPASS REAL CACHE ---
 vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
@@ -31,6 +30,17 @@ vi.mock("uuid", () => ({
 vi.mock("../../../src/lib/redis/redis-lock.ts", () => ({
   acquireLock: vi.fn(),
   releaseLock: vi.fn(),
+}));
+
+// The controller imports the Razorpay refund service, which instantiates the
+// Razorpay client at module scope — mock it so tests never need gateway keys.
+vi.mock("../../../src/services/razorpay-refund.service.ts", () => ({
+  initiateGatewayRefund: vi.fn(),
+}));
+
+vi.mock("../../../src/lib/rabbitmq/config/rabbitmq.ts", () => ({
+  __esModule: true,
+  default: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../../src/lib/index.ts", async () => {
@@ -114,7 +124,6 @@ describe("Booking Controller", () => {
       };
 
       (prisma.idempotencyKey.findUnique as any).mockResolvedValue(null);
-      (acquireLock as any).mockResolvedValue(true);
 
       (prisma.$transaction as any).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -122,10 +131,13 @@ describe("Booking Controller", () => {
           $queryRaw: vi
             .fn()
             .mockResolvedValue([
-              { id: "bed-1", roomId: "room-1", pricePerBed: 100 },
+              { id: "rt-1", pricePerBed: 6000, totalBeds: 10 },
             ]),
-          booking: { create: vi.fn().mockResolvedValue({ id: "booking-1" }) },
-          bed: { update: vi.fn() },
+          booking: {
+            create: vi.fn().mockResolvedValue({ id: "booking-1" }),
+            count: vi.fn().mockResolvedValue(3),
+          },
+          user: { findUnique: vi.fn(), update: vi.fn() },
           idempotencyKey: { create: vi.fn() },
         };
         return callback(mockTx);
@@ -133,11 +145,47 @@ describe("Booking Controller", () => {
 
       await createBooking(mockReq, mockRes, mockNext);
 
-      expect(acquireLock).toHaveBeenCalled();
-
       expect(prisma.$transaction).toHaveBeenCalled();
-      expect(releaseLock).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test("throws SOLD_OUT when the template has no capacity left", async () => {
+      const futureStart = new Date(Date.now() + 86400000);
+      const futureEnd = new Date(Date.now() + 172800000);
+
+      mockReq.get.mockReturnValue("idemp-key-123");
+      mockReq.body = {
+        propertyId: "prop-1",
+        roomTemplateId: "rt-1",
+        startDate: futureStart,
+        endDate: futureEnd,
+        paymentMode: "OFFLINE",
+      };
+
+      (prisma.idempotencyKey.findUnique as any).mockResolvedValue(null);
+
+      (prisma.$transaction as any).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          $executeRaw: vi.fn().mockResolvedValue([]),
+          $queryRaw: vi
+            .fn()
+            .mockResolvedValue([
+              { id: "rt-1", pricePerBed: 6000, totalBeds: 10 },
+            ]),
+          booking: {
+            create: vi.fn(),
+            count: vi.fn().mockResolvedValue(10),
+          },
+          user: { findUnique: vi.fn(), update: vi.fn() },
+          idempotencyKey: { create: vi.fn() },
+        };
+        return callback(mockTx);
+      });
+
+      await createBooking(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
+      expect(mockNext.mock.calls[0][0].message).toContain("sold out");
     });
 
     test("should throw 400 if idempotency key is missing", async () => {
@@ -178,6 +226,8 @@ describe("Booking Controller", () => {
         cancelledAt: null,
         guestId: "user-123",
         bedId: "bed-1",
+        paymentMode: "OFFLINE",
+        paymentStatus: "PENDING",
       });
 
       (prisma.booking.update as any).mockResolvedValue({
@@ -188,11 +238,11 @@ describe("Booking Controller", () => {
       await cancelBooking(mockReq, mockRes, mockNext);
 
       expect(prisma.booking.update).toHaveBeenCalled();
-      expect(prisma.bed.update).toHaveBeenCalled();
+      expect(prisma.bed.update).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
 
-    test("should throw 400 if booking is already started", async () => {
+    test("throws 403 when the check-in date has arrived", async () => {
       mockReq.body = { bookingId: "booking-1" };
       const pastDate = new Date(Date.now() - 86400000);
 
@@ -201,12 +251,32 @@ describe("Booking Controller", () => {
         status: "PENDING",
         propertyId: "prop-1",
         startDate: pastDate,
+        paymentMode: "OFFLINE",
+        paymentStatus: "PENDING",
       });
 
       await cancelBooking(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
-      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
+      expect(mockNext.mock.calls[0][0].statusCode).toBe(403);
+    });
+
+    test("blocks paid offline bookings so the admin records the refund", async () => {
+      mockReq.body = { bookingId: "booking-1" };
+
+      mockSecuredDb.booking.findUnique.mockResolvedValue({
+        id: "booking-1",
+        status: "CONFIRMED",
+        propertyId: "prop-1",
+        startDate: new Date(Date.now() + 86400000),
+        paymentMode: "OFFLINE",
+        paymentStatus: "PAID",
+      });
+
+      await cancelBooking(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
+      expect(mockNext.mock.calls[0][0].statusCode).toBe(403);
     });
   });
 
@@ -229,9 +299,12 @@ describe("Booking Controller", () => {
       mockSecuredDb.booking.findUnique.mockResolvedValue({
         id: "booking-1",
         status: "CONFIRMED",
-        bedId: "bed-1",
         paymentStatus: "PAID",
         paymentMode: "OFFLINE",
+        totalPrice: 5600,
+        startDate: new Date(Date.now() + 5 * 86400000),
+        endDate: new Date(Date.now() + 15 * 86400000),
+        roomTemplate: { pricePerBed: 6000 },
       });
 
       mockSecuredDb.booking.update.mockResolvedValue({ id: "booking-1" });
@@ -240,6 +313,42 @@ describe("Booking Controller", () => {
 
       expect(mockSecuredDb.booking.update).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        }),
+      );
+    });
+
+    test("blocks cancellations after the stay has ended", async () => {
+      mockReq.params = { propertyId: "prop-1" };
+      mockReq.body = { bookingId: "booking-1" };
+
+      mockSecuredDb.user.findUnique.mockResolvedValue({
+        id: "user-123",
+        tenant: { id: "tenant-99" },
+      });
+
+      (prisma.property.findUnique as any).mockResolvedValue({
+        id: "prop-1",
+        adminId: "user-123",
+      });
+
+      mockSecuredDb.booking.findUnique.mockResolvedValue({
+        id: "booking-1",
+        status: "ONGOING",
+        paymentStatus: "PAID",
+        paymentMode: "ONLINE",
+        totalPrice: 5600,
+        startDate: new Date(Date.now() - 10 * 86400000),
+        endDate: new Date(Date.now() - 2 * 86400000),
+        roomTemplate: { pricePerBed: 6000 },
+      });
+
+      await cancelAdminBooking(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
+      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
     });
 
     test("should throw 403 if user is not property admin", async () => {
