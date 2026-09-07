@@ -107,6 +107,7 @@ model RoomTemplate {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
   rooms         Room[]
+  bookings      Booking[]
   property      Property  @relation(fields: [propertyId], references: [id])
 
   @@index([propertyId])
@@ -150,27 +151,29 @@ model Bed {
 }
 
 model Booking {
-  id            String        @id @default(uuid())
-  propertyId    String
-  roomId        String
-  guestId       String
-  status        BookingStatus @default(PENDING)
-  totalPrice    Decimal       @db.Decimal(12, 2)
-  startDate     DateTime
-  endDate       DateTime
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  cancelledAt   DateTime?
-  bedId         String
-  invoiceId     String?
-  paymentStatus PaymentStatus
-  paymentMode   PaymentMode
-  bed           Bed           @relation(fields: [bedId], references: [id])
-  guest         User          @relation(fields: [guestId], references: [id])
-  property      Property      @relation(fields: [propertyId], references: [id])
-  room          Room          @relation(fields: [roomId], references: [id])
-  invoice       Invoice?
-  payments      Payment[]
+  id             String        @id @default(uuid())
+  propertyId     String
+  roomTemplateId String
+  guestId        String
+  status         BookingStatus @default(PENDING)
+  totalPrice     Decimal       @db.Decimal(12, 2)
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  cancelledAt    DateTime?
+  bedId          String?
+  roomId         String?
+  invoiceId      String?
+  paymentStatus  PaymentStatus
+  paymentMode    PaymentMode
+  bed            Bed?          @relation(fields: [bedId], references: [id])
+  guest          User          @relation(fields: [guestId], references: [id])
+  property       Property      @relation(fields: [propertyId], references: [id])
+  room           Room?         @relation(fields: [roomId], references: [id])
+  roomTemplate   RoomTemplate  @relation(fields: [roomTemplateId], references: [id])
+  invoice        Invoice?
+  payments       Payment[]
 
   @@index([propertyId, roomId, guestId])
   @@index([propertyId])
@@ -178,6 +181,11 @@ model Booking {
   @@index([bedId])
   @@index([startDate, endDate])
   @@index([paymentMode, paymentStatus])
+  @@index([roomTemplateId])
+
+  // NOTE: the double-booking exclusion constraint (btree_gist over bed_id +
+  // tsrange(start_date, end_date), active statuses only) lives in raw SQL in
+  // migration add_booking_engine_v2 — never regenerate it with `db push`.
 }
 
 model Invoice {
@@ -210,6 +218,7 @@ model Payment {
   offlineReference  String?
   refundAmount      Decimal?        @db.Decimal(12, 2)
   refundMethod      PaymentProvider?
+  refundStatus      PaymentRefundStatus?
   refundedAt        DateTime?
   verifiedById      String?
   verifiedAt        DateTime?
@@ -277,6 +286,12 @@ enum PaymentProvider {
   CASH
   UPI
   BANK_TRANSFER
+}
+
+enum PaymentRefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
 }
 
 enum PaymentStatus {
