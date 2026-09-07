@@ -231,7 +231,8 @@ export const bookingValidation = validate(
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       // bedId: z.string().min(1).trim(),
-      paymentMode: z.enum(["OFFLINE", "ONLINE", ]),
+      paymentMode: z.enum(["OFFLINE", "ONLINE",]),
+      phoneNo: z.string().min(10).max(10).trim(),
     }),
     params: z.object({}).optional(),
     query: z.object({}).optional(),
@@ -273,6 +274,33 @@ export const markPaidValidation = validate(
     }),
     params: z.object({
       propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const assignBedValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      bedId: z.string().uuid(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const updateDatesValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1).optional(),
     }),
     query: z.object({}).optional(),
   }),
