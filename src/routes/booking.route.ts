@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  assignBookingBed,
   cancelAdminBooking,
   cancelBooking,
   createBooking,
@@ -10,17 +11,21 @@ import {
   getUserBookings,
   markAdminPaymentPaid,
   recordAdminPaymentRefund,
+  updateAdminBookingDates,
   updateBookingStatus,
+  updateGuestBookingDates,
   updateUserBooking,
 } from "../controller/booking.controller.ts";
 import { restrictTo } from "../lib/index.ts";
 import pkg from "express-openid-connect";
 import {
+  assignBedValidation,
   bookingValidation,
   bookingStatusValidation,
   markPaidValidation,
   occupancyValidation,
   refundValidation,
+  updateDatesValidation,
 } from "../middleware/validation.middleware.ts";
 import {
   bookingRateLimit,
@@ -104,6 +109,29 @@ router.patch(
   restrictTo("Admin", "Super_Admin"),
   refundValidation,
   recordAdminPaymentRefund,
+);
+router.patch(
+  "/admin/:propertyId/booking/assign-bed",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  assignBedValidation,
+  assignBookingBed,
+);
+router.patch(
+  "/admin/:propertyId/booking/dates",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  updateDatesValidation,
+  updateAdminBookingDates,
+);
+router.patch(
+  "/dates",
+  requiresAuth(),
+  bookingRateLimit,
+  updateDatesValidation,
+  updateGuestBookingDates,
 );
 
 export default router;
