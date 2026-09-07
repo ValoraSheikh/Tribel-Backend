@@ -2,7 +2,6 @@ import crypto from "crypto";
 import prisma from "../lib/prisma/db.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import redis from "../lib/redis/redis-cache.ts";
-import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 
 const WEBHOOK_EVENT_TTL = 60 * 60 * 24 * 7;
 
@@ -63,6 +62,9 @@ export async function processWebhookEvent(
       return await handleOrderPaid(payload);
     case "payment.failed":
       return await handlePaymentFailed(payload);
+    case "refund.processed":
+    case "refund.failed":
+      return await handleRefundStatusChange(payload);
     default:
       return {
         status: "unrecognized",
@@ -123,60 +125,41 @@ async function handleOrderPaid(
     return { status: "processed", message: "Payment already captured" };
   }
 
-  await securedDB.$transaction(async (tx) => {
-    await tx.payment.upsert({
-      where: { razorpayOrderId: orderId },
-      create: {
-        bookingId,
-        guestId: userId,
-        provider: "RAZORPAY",
-        status: "PAID",
-        amount,
-        currency,
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        paidAt: new Date(),
-        metadata: paymentEntity.notes || {},
-      },
-      update: {
-        status: "PAID",
-        razorpayPaymentId: paymentId,
-        paidAt: new Date(),
-        amount,
-        currency,
-        metadata: paymentEntity.notes || {},
-        failureReason: null,
-      },
+    // Payment is captured, but the booking still awaits admin approval per
+    // the booking policy — approval is acceptance, not money.
+    await securedDB.$transaction(async (tx) => {
+      await tx.payment.upsert({
+        where: { razorpayOrderId: orderId },
+        create: {
+          bookingId,
+          guestId: userId,
+          provider: "RAZORPAY",
+          status: "PAID",
+          amount,
+          currency,
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          paidAt: new Date(),
+          metadata: paymentEntity.notes || {},
+        },
+        update: {
+          status: "PAID",
+          razorpayPaymentId: paymentId,
+          paidAt: new Date(),
+          amount,
+          currency,
+          metadata: paymentEntity.notes || {},
+          failureReason: null,
+        },
+      });
+
+      await tx.booking.update({
+        where: { id: bookingId, paymentStatus: "PENDING" },
+        data: { paymentStatus: "PAID", paymentMode: "ONLINE" },
+      });
     });
 
-    await tx.booking.update({
-      where: { id: bookingId, paymentStatus: "PENDING" },
-      data: {
-        paymentStatus: "PAID",
-        status: "CONFIRMED",
-        paymentMode: "ONLINE",
-      },
-    });
-  });
-
-  try {
-    const msg = { bookingId, paymentId, userId, auth0Id, tenantId };
-    await rabbitmq({
-      msg: JSON.stringify(msg),
-      exchange: "tribel.events",
-      routingKey: "invoice",
-    });
-
-    await rabbitmq({
-      msg: JSON.stringify(msg),
-      exchange: "tribel.events",
-      routingKey: "email",
-    });
-  } catch (err) {
-    console.error("Failed to emit events for booking", bookingId, err);
-  }
-
-  return { status: "processed", message: "Payment captured successfully" };
+    return { status: "processed", message: "Payment captured successfully" };
 }
 
 async function handlePaymentFailed(
@@ -266,4 +249,59 @@ async function handlePaymentFailed(
   });
 
   return { status: "processed", message: "Payment failed recorded" };
+}
+
+/**
+ * Razorpay refund lifecycle: refunds start as PENDING when we call the
+ * gateway and settle asynchronously. The booking's paymentStatus flips to
+ * REFUNDED (or PARTIALLY_PAID for partial amounts) only on `processed` —
+ * an initiated refund is never reported as completed money movement.
+ */
+async function handleRefundStatusChange(
+  payload: Record<string, any>,
+): Promise<{
+  status: "processed"; message: string
+}> {
+  const refundEntity = payload.payload?.refund?.entity;
+  if (!refundEntity?.id) {
+    console.error("Missing refund entity in refund webhook payload");
+    return { status: "processed", message: "Missing refund entity" };
+  }
+
+  const refundId = refundEntity.id;
+  const processed = payload.event === "refund.processed";
+  const refundAmount = refundEntity.amount ? refundEntity.amount / 100 : null;
+
+  const payment = await prisma.payment.findFirst({
+    where: { razorpayRefundId: refundId },
+    include: { booking: true },
+  });
+
+  if (!payment) {
+    console.error(`Refund webhook for unknown refund id ${refundId}`);
+    return { status: "processed", message: "Unknown refund id" };
+  }
+
+  const refundStatus = processed ? "PROCESSED" : "FAILED";
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: { refundStatus },
+  });
+
+  if (!processed) {
+    return { status: "processed", message: "Refund failure recorded" };
+  }
+
+  const total = Number(payment.booking.totalPrice);
+  const refundedSoFar = refundAmount ?? Number(payment.refundAmount ?? 0);
+  const bookingPaymentStatus =
+    refundedSoFar < total ? "PARTIALLY_PAID" : "REFUNDED";
+
+  await prisma.booking.update({
+    where: { id: payment.bookingId },
+    data: { paymentStatus: bookingPaymentStatus },
+  });
+
+  return { status: "processed", message: "Refund processed" };
 }
