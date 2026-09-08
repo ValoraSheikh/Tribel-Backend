@@ -579,6 +579,7 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
         status: true,
         paymentMode: true,
         paymentStatus: true,
+        roomTemplateId: true,
         guest: {
           select: {
             id: true,
@@ -849,6 +850,7 @@ export const getAllBooking = asyncHandler(async (req, res) => {
         bedId: true,
         paymentMode: true,
         paymentStatus: true,
+        roomTemplateId: true,
         property: {
           select: {
             id: true,
@@ -1143,6 +1145,7 @@ export const getOccupancy = asyncHandler(async (req, res) => {
         endDate: true,
         paymentMode: true,
         paymentStatus: true,
+        roomTemplateId: true,
         invoiceId: true,
         invoice: {
           select: {
