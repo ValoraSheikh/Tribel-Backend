@@ -430,6 +430,7 @@ export const getUserBookings = asyncHandler(async (req, res) => {
             lastName: true,
             email: true,
             phoneNo: true,
+            avatar: true,
           },
         },
         bed: {
@@ -465,7 +466,7 @@ export const getUserBookings = asyncHandler(async (req, res) => {
       },
       take: limit,
       skip: skip,
-      orderBy: { startDate: "desc" },
+      orderBy: { createdAt: "desc" },
     }),
 
     securedDB.booking.count({
