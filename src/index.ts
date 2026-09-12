@@ -4,6 +4,7 @@ import { app } from "./app.ts";
 import emailConsumer from "./lib/rabbitmq/consumers/email.consumer.ts";
 import invoiceConsumer from "./lib/rabbitmq/consumers/invoice.consumer.ts";
 import { startBookingLifecycleCron } from "./jobs/booking-lifecycle.job.ts";
+import { startRefundReconciliationCron } from "./jobs/refund-reconciliation.job.ts";
 
 dotenv.config({ path: "./.env" });
 const port = process.env.PORT;
@@ -23,6 +24,7 @@ app.listen(port, () => {
 });
 
 startBookingLifecycleCron();
+startRefundReconciliationCron();
 
 emailConsumer().catch((err) => console.error("Email consumer failed to start:", err));
 invoiceConsumer().catch((err) => console.error("Invoice consumer failed to start:", err));

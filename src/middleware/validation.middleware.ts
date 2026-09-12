@@ -315,7 +315,6 @@ export const refundValidation = validate(
         .enum(["CASH", "UPI", "BANK_TRANSFER", "RAZORPAY"])
         .optional(),
       reference: z.string().max(255).optional(),
-      razorpayRefundId: z.string().max(64).optional(),
     }),
     params: z.object({
       propertyId: z.string().min(1),

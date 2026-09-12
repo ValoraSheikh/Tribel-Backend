@@ -61,6 +61,15 @@ router.patch(
   bookingStatusValidation,
   updateBookingStatus,
 );
+// Registered before "/:bookingId" — Express matches in order, and a literal
+// path must win over the parameterised one or "dates" is read as a booking id.
+router.patch(
+  "/dates",
+  requiresAuth(),
+  bookingRateLimit,
+  updateDatesValidation,
+  updateGuestBookingDates,
+);
 router.patch(
   "/:bookingId",
   requiresAuth(),
@@ -125,13 +134,6 @@ router.patch(
   restrictTo("Admin", "Super_Admin"),
   updateDatesValidation,
   updateAdminBookingDates,
-);
-router.patch(
-  "/dates",
-  requiresAuth(),
-  bookingRateLimit,
-  updateDatesValidation,
-  updateGuestBookingDates,
 );
 
 export default router;
