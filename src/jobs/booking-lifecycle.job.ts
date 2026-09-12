@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import prisma from "../lib/prisma/db.ts";
 import client from "../lib/redis/redis-cache.ts";
+import { deleteOccupancyCache } from "../lib/redis/occupancy-cache.ts";
 import { istTodayKey } from "../lib/dates.ts";
 
 export interface LifecycleSweepResult {
@@ -9,6 +10,9 @@ export interface LifecycleSweepResult {
   actionRequired: number;
   sweptProperties: string[];
 }
+
+const SWEEP_LOCK_KEY = "BookingLifecycle:sweepLock";
+const SWEEP_LOCK_TTL_SECONDS = 300;
 
 /**
  * Daily lifecycle sweep. All conditions are evaluated in IST calendar terms:
@@ -81,7 +85,7 @@ export async function sweepBookingLifecycle(): Promise<LifecycleSweepResult> {
 
   for (const propertyId of sweptProperties) {
     await client.del(`AdminBookings:${propertyId}`);
-    await client.del(`Occupancy:${propertyId}:*`);
+    await deleteOccupancyCache(propertyId);
   }
 
   return {
@@ -92,18 +96,56 @@ export async function sweepBookingLifecycle(): Promise<LifecycleSweepResult> {
   };
 }
 
+/**
+ * Runs the sweep under a short Redis lock so overlapping triggers (the startup
+ * catch-up racing the scheduled run, or a second container) cannot double-apply.
+ * Returns null when another sweep already holds the lock, or when Redis is
+ * unavailable — a skipped sweep is safe because every transition is idempotent.
+ */
+async function runSweep(
+  trigger: "startup" | "scheduled",
+): Promise<LifecycleSweepResult | null> {
+  let acquired: string | null;
+
+  try {
+    acquired = await client.set(
+      SWEEP_LOCK_KEY,
+      String(Date.now()),
+      "EX",
+      SWEEP_LOCK_TTL_SECONDS,
+      "NX",
+    );
+  } catch (err) {
+    console.error("[booking-lifecycle] could not acquire sweep lock", err);
+    return null;
+  }
+
+  if (acquired !== "OK") return null;
+
+  try {
+    const result = await sweepBookingLifecycle();
+    console.log(
+      `[booking-lifecycle] ${trigger} sweep: ${result.startedToOngoing} -> ONGOING, ` +
+        `${result.endedToCompleted} -> COMPLETED, ` +
+        `${result.actionRequired} need attention`,
+    );
+    return result;
+  } catch (err) {
+    console.error(`[booking-lifecycle] ${trigger} sweep failed`, err);
+    return null;
+  } finally {
+    await client.del(SWEEP_LOCK_KEY);
+  }
+}
+
 /** Registers the daily IST-midnight lifecycle sweep. */
 export function startBookingLifecycleCron(): void {
-  cron.schedule("5 0 * * *", async () => {
-    try {
-      const result = await sweepBookingLifecycle();
-      console.log(
-        `[booking-lifecycle] swept: ${result.startedToOngoing} -> ONGOING, ` +
-          `${result.endedToCompleted} -> COMPLETED, ` +
-          `${result.actionRequired} need attention`,
-      );
-    } catch (err) {
-      console.error("[booking-lifecycle] sweep failed", err);
-    }
-  }, { timezone: "Asia/Kolkata" });
+  // Catch up immediately. node-cron does not replay a window that was missed
+  // while the process was down, so without this a restart around 00:05 IST
+  // costs a full day of un-advanced statuses.
+  void runSweep("startup");
+
+  cron.schedule("5 0 * * *", () => void runSweep("scheduled"), {
+    timezone: "Asia/Kolkata",
+  });
 }
