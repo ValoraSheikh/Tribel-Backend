@@ -2,6 +2,7 @@ import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import client from "../lib/redis/redis-cache.ts";
+import { deleteOccupancyCache } from "../lib/redis/occupancy-cache.ts";
 import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
 import {
   assertAdminCancellable,
@@ -9,34 +10,21 @@ import {
   assertDateChangeAllowed,
   assertGuestCancellable,
   assertMarkPaidAllowed,
+  assertNoRefundInFlight,
   assertRefundAllowed,
+  assertRefundWindowOpen,
+  assertRefundWithinPaid,
   assertRejectable,
   computeBookingPrice,
   computeProratedSettlement,
+  refundableBalance,
   resolveRefundMethod,
-  resolveRefundStatus,
+  summarizeRefunds,
 } from "../services/booking-state.service.ts";
 import { initiateGatewayRefund } from "../services/razorpay-refund.service.ts";
 import type { PaymentProvider } from "../generated/prisma/client.ts";
 
 const MAX_OCCUPANCY_WINDOW_DAYS = 62;
-
-const deleteOccupancyCache = async (propertyId: string) => {
-  let cursor = "0";
-  do {
-    const [nextCursor, keys] = await client.scan(
-      cursor,
-      "MATCH",
-      `Occupancy:${propertyId}:*`,
-      "COUNT",
-      100,
-    );
-    cursor = nextCursor;
-    if (keys.length > 0) {
-      await client.del(...keys);
-    }
-  } while (cursor !== "0");
-};
 
 export const createBooking = asyncHandler(async (req, res) => {
   const {
@@ -238,6 +226,18 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     where: {
       id: bookingId,
     },
+    select: {
+      id: true,
+      guestId: true,
+      propertyId: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      paymentMode: true,
+      paymentStatus: true,
+      refunds: { select: { amount: true, status: true } },
+      payments: { select: { amount: true, status: true } },
+    },
   });
 
   if (!booking) {
@@ -246,7 +246,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 
   assertGuestCancellable(booking);
 
-  if (req.user?.id !== booking?.guestId) throw new ApiError("Forbidden", 403);
+  if (req.user?.id !== booking.guestId) throw new ApiError("Forbidden", 403);
 
   const cancelBooking = await prisma.booking.update({
     where: {
@@ -261,9 +261,21 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   await client.del(`AdminBookings:${booking.propertyId}`);
   await deleteOccupancyCache(booking.propertyId);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(cancelBooking, "Booking cancel successfully", 200));
+  // What the property still holds for this guest. Recording the refund stays an
+  // admin action, but the guest is told what is owed instead of guessing.
+  const refundSummary = summarizeRefunds(booking.payments, booking.refunds);
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        ...cancelBooking,
+        refundRequired: refundSummary.refundableAmount > 0,
+        refundSummary,
+      },
+      "Booking cancel successfully",
+      200,
+    ),
+  );
 });
 
 export const cancelAdminBooking = asyncHandler(async (req, res) => {
@@ -332,6 +344,8 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
       totalPrice: true,
       startDate: true,
       endDate: true,
+      refunds: { select: { amount: true, status: true } },
+      payments: { select: { amount: true, status: true } },
       roomTemplate: {
         select: { pricePerBed: true },
       },
@@ -358,22 +372,45 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
   await client.del(`AdminBookings:${propertyId}`);
   await deleteOccupancyCache(propertyId);
 
-  const paidOffline =
-    existingBooking.paymentMode === "OFFLINE" &&
-    existingBooking.paymentStatus === "PAID";
-  const suggestedRefund =
-    existingBooking.status === "ONGOING" &&
-    (existingBooking.paymentStatus === "PAID" ||
-      existingBooking.paymentStatus === "PARTIALLY_PAID")
-      ? computeProratedSettlement({
-          totalPrice: existingBooking.totalPrice,
-          startDate: existingBooking.startDate,
-          endDate: existingBooking.endDate,
-          pricePerBed: existingBooking.roomTemplate.pricePerBed,
-        })
-      : paidOffline
-        ? { nightsUsed: null, amountDue: 0, refundAmount: Number(existingBooking.totalPrice) }
-        : null;
+  const refundSummary = summarizeRefunds(
+    existingBooking.payments,
+    existingBooking.refunds,
+  );
+
+  let suggestedRefund: {
+    nightsUsed: number | null;
+    amountDue: number;
+    refundAmount: number;
+  } | null = null;
+
+  if (refundSummary.refundableAmount > 0) {
+    // Mid-stay cancels settle on the nights consumed; any other paid cancel
+    // gives back everything still held. Either way the suggestion is capped by
+    // the money actually collected and not already refunded, so the admin is
+    // never nudged toward refunding more than the booking captured.
+    if (existingBooking.status === "ONGOING") {
+      const settlement = computeProratedSettlement({
+        totalPrice: existingBooking.totalPrice,
+        startDate: existingBooking.startDate,
+        endDate: existingBooking.endDate,
+        pricePerBed: existingBooking.roomTemplate.pricePerBed,
+      });
+
+      suggestedRefund = {
+        ...settlement,
+        refundAmount: Math.min(
+          settlement.refundAmount,
+          refundSummary.refundableAmount,
+        ),
+      };
+    } else {
+      suggestedRefund = {
+        nightsUsed: null,
+        amountDue: 0,
+        refundAmount: refundSummary.refundableAmount,
+      };
+    }
+  }
 
   return res
     .status(200)
@@ -383,9 +420,8 @@ export const cancelAdminBooking = asyncHandler(async (req, res) => {
           bookingId: booking.id,
           status: "CANCELLED",
           suggestedRefund,
-          refundRequired:
-            existingBooking.paymentStatus === "PAID" ||
-            existingBooking.paymentStatus === "PARTIALLY_PAID",
+          refundRequired: refundSummary.refundableAmount > 0,
+          refundSummary,
         },
         "Booking cancelled successfully",
         200,
@@ -423,6 +459,8 @@ export const getUserBookings = asyncHandler(async (req, res) => {
         status: true,
         paymentMode: true,
         paymentStatus: true,
+        refunds: { select: { amount: true, status: true } },
+        payments: { select: { amount: true, status: true } },
         guest: {
           select: {
             id: true,
@@ -480,10 +518,18 @@ export const getUserBookings = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse([], "No bookings found", 404));
   }
 
+  // Refund state is derived here, against the captured amount, so no client has
+  // to compare refunds against the booking total — which lies for a partially
+  // paid booking.
+  const bookingsWithRefunds = bookings.map((booking) => ({
+    ...booking,
+    refundSummary: summarizeRefunds(booking.payments, booking.refunds),
+  }));
+
   return res.status(200).json(
     new ApiResponse(
       {
-        bookings: bookings,
+        bookings: bookingsWithRefunds,
         page,
         totalBookings: totalBookings,
         totalPages: Math.ceil(totalBookings / limit),
@@ -580,6 +626,8 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
         status: true,
         paymentMode: true,
         paymentStatus: true,
+        refunds: { select: { amount: true, status: true } },
+        payments: { select: { amount: true, status: true } },
         roomTemplateId: true,
         guest: {
           select: {
@@ -637,10 +685,15 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse([], "No bookings found", 404));
   }
 
+  const bookingsWithRefunds = bookings.map((booking) => ({
+    ...booking,
+    refundSummary: summarizeRefunds(booking.payments, booking.refunds),
+  }));
+
   await client.set(
     `AdminBookings:${propertyId}`,
     JSON.stringify({
-      bookings: bookings,
+      bookings: bookingsWithRefunds,
       page,
       totalBookings: totalBookings,
       totalPages: Math.ceil(totalBookings / limit),
@@ -652,7 +705,7 @@ export const getBookingsForAdmin = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       {
-        bookings: bookings,
+        bookings: bookingsWithRefunds,
         page,
         totalBookings: totalBookings,
         totalPages: Math.ceil(totalBookings / limit),
@@ -983,6 +1036,8 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
       status: true,
       paymentMode: true,
       paymentStatus: true,
+      refunds: { select: { amount: true, status: true } },
+      payments: { select: { amount: true, status: true } },
       guest: {
         select: {
           id: true,
@@ -1027,7 +1082,13 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
     .status(200)
     .json(
       new ApiResponse(
-        bookingDetails,
+        {
+          ...bookingDetails,
+          refundSummary: summarizeRefunds(
+            bookingDetails.payments,
+            bookingDetails.refunds,
+          ),
+        },
         "Booking details fetched successfully",
         200,
       ),
@@ -1146,6 +1207,8 @@ export const getOccupancy = asyncHandler(async (req, res) => {
         endDate: true,
         paymentMode: true,
         paymentStatus: true,
+        refunds: { select: { amount: true, status: true } },
+        payments: { select: { amount: true, status: true } },
         roomTemplateId: true,
         invoiceId: true,
         invoice: {
@@ -1212,7 +1275,12 @@ export const getOccupancy = asyncHandler(async (req, res) => {
     }),
   ]);
 
-  const payload = { bookings, beds, startDate, endDate };
+  const bookingsWithRefunds = bookings.map((booking) => ({
+    ...booking,
+    refundSummary: summarizeRefunds(booking.payments, booking.refunds),
+  }));
+
+  const payload = { bookings: bookingsWithRefunds, beds, startDate, endDate };
 
   await client.set(cacheKey, JSON.stringify(payload), "EX", 300);
 
@@ -1467,9 +1535,11 @@ export const recordAdminPaymentRefund = asyncHandler(async (req, res) => {
   if (user.id !== property.adminId)
     throw new ApiError("You are not allowed to take this action", 403);
 
+  const tenantId = user.tenant.id;
+
   const withRLS = getSecuredClient({
     userId: user.id,
-    tenantId: user.tenant.id,
+    tenantId,
     role: user.role,
     auth0Id: user.auth0Id,
   });
@@ -1478,7 +1548,6 @@ export const recordAdminPaymentRefund = asyncHandler(async (req, res) => {
     where: { id: bookingId, propertyId: propertyId },
     select: {
       id: true,
-      totalPrice: true,
       paymentMode: true,
       paymentStatus: true,
     },
@@ -1488,101 +1557,170 @@ export const recordAdminPaymentRefund = asyncHandler(async (req, res) => {
 
   assertRefundAllowed(booking.paymentStatus);
 
-  const resolvedAmount = amount ?? Number(booking.totalPrice);
-  const refundStatus = resolveRefundStatus(booking, resolvedAmount);
-  const refundMethod = resolveRefundMethod(booking.paymentMode, method);
-
-  const payment = await withRLS.payment.findFirst({
-    where: { bookingId: booking.id, status: "PAID" },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!payment) throw new ApiError("No paid payment found for this booking", 404);
-
-  if (booking.paymentMode === "ONLINE") {
-    // Online refunds are gateway-mandated: the refund id comes from Razorpay,
-    // never from the admin's keyboard. The booking's paymentStatus flips only
-    // when the refund.processed webhook confirms the money actually moved.
-    if (method && method !== "RAZORPAY") {
-      throw new ApiError(
-        "Online refunds are processed through Razorpay and cannot use another method",
-        400,
-      );
-    }
-
-    const gatewayRefund = await initiateGatewayRefund(
-      booking.id,
-      resolvedAmount,
+  // Online refunds are gateway-mandated: the refund id comes from Razorpay,
+  // never from the admin's keyboard.
+  if (booking.paymentMode === "ONLINE" && method && method !== "RAZORPAY") {
+    throw new ApiError(
+      "Online refunds are processed through Razorpay and cannot use another method",
+      400,
     );
-
-    await withRLS.payment.update({
-      where: { id: payment.id },
-      data: {
-        refundAmount: resolvedAmount,
-        refundMethod: "RAZORPAY",
-        refundStatus: "PENDING",
-        refundedAt: new Date(),
-        razorpayRefundId: gatewayRefund.refundId,
-      },
-    });
-
-    await client.del(`AdminBookings:${propertyId}`);
-    await deleteOccupancyCache(propertyId);
-
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          {
-            bookingId: booking.id,
-            paymentStatus: booking.paymentStatus,
-            refundStatus: "PENDING",
-            refundAmount: resolvedAmount,
-            refundMethod: "RAZORPAY",
-            razorpayRefundId: gatewayRefund.refundId,
-          },
-          "Refund initiated via Razorpay — the booking updates when the refund is processed",
-          200,
-        ),
-      );
   }
 
-  const [, updatedBooking] = await withRLS.$transaction([
-    withRLS.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: refundStatus,
-        refundAmount: resolvedAmount,
-        refundMethod,
-        refundedAt: new Date(),
-        offlineReference: reference ?? null,
-      },
-    }),
-    withRLS.booking.update({
-      where: { id: booking.id },
-      data: { paymentStatus: refundStatus },
-    }),
-  ]);
+  const refundMethod = resolveRefundMethod(booking.paymentMode, method);
+
+  const outcome = await prisma.$transaction(
+    async (tx) => {
+      // The lock/read/insert below must share one connection for the cap to
+      // hold, so this runs on the plain client with an explicit RLS context
+      // (Payment and Refund carry no policy, Booking is read outside).
+      await tx.$executeRaw`
+        SELECT set_config('app.current_role', ${user.role}::text, true),
+          set_config('app.current_tenant_id', ${tenantId}::text, true),
+          set_config('app.current_userId', ${user.id}::text, true),
+          set_config('app.current_user_auth0_id', ${user.auth0Id}::text, true)
+      `;
+
+      // Resolve the payment once: the cumulative cap, the ledger row and the
+      // gateway call must all be backed by the same payment. Looking it up
+      // again inside the gateway service is how the ledger could end up
+      // pointing at one payment while another was refunded.
+      const payment = await tx.payment.findFirst({
+        where:
+          booking.paymentMode === "ONLINE"
+            ? {
+                bookingId: booking.id,
+                provider: "RAZORPAY",
+                status: "PAID",
+                razorpayPaymentId: { not: null },
+              }
+            : { bookingId: booking.id, status: "PAID" },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          razorpayPaymentId: true,
+          paidAt: true,
+          createdAt: true,
+        },
+      });
+
+      if (!payment)
+        throw new ApiError("No paid payment found for this booking", 404);
+
+      // Serialize refunds on this payment. The cap is a read-then-write, so
+      // without the row lock two concurrent requests each read the same balance
+      // and both refund it. Payment has no RLS policy, so a plain row lock is
+      // enough to make the check hold.
+      await tx.$queryRaw`SELECT id FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;
+
+      const refunds = await tx.refund.findMany({
+        where: { paymentId: payment.id },
+        select: { amount: true, status: true },
+      });
+
+      assertNoRefundInFlight(refunds);
+
+      // Default to whatever is still refundable, and cap cumulatively against
+      // the captured amount — never against the booking total, which a partially
+      // paid booking would let an admin refund beyond what was actually
+      // collected.
+      const resolvedAmount =
+        amount ?? refundableBalance(payment.amount, refunds);
+
+      assertRefundWithinPaid(payment.amount, refunds, resolvedAmount);
+
+      if (booking.paymentMode === "ONLINE") {
+        if (!payment.razorpayPaymentId) {
+          throw new ApiError(
+            "The captured payment has no Razorpay payment id — record this refund offline instead",
+            400,
+          );
+        }
+
+        // Razorpay refuses refunds on payments older than six months; fail with
+        // an actionable message instead of a raw gateway error. The ledger row
+        // stays PENDING until the refund.processed webhook (or the
+        // reconciliation sweep) confirms the money actually moved.
+        assertRefundWindowOpen(payment.paidAt ?? payment.createdAt);
+
+        const gatewayRefund = await initiateGatewayRefund(
+          payment.razorpayPaymentId,
+          resolvedAmount,
+          booking.id,
+        );
+
+        const refund = await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            bookingId: booking.id,
+            amount: resolvedAmount,
+            method: "RAZORPAY",
+            providerRefundId: gatewayRefund.refundId,
+            status: "PENDING",
+            createdById: user.id,
+          },
+        });
+
+        return {
+          refund,
+          payment,
+          refunds,
+          resolvedAmount,
+          gatewayRefundId: gatewayRefund.refundId,
+        };
+      }
+
+      const refund = await tx.refund.create({
+        data: {
+          paymentId: payment.id,
+          bookingId: booking.id,
+          amount: resolvedAmount,
+          method: refundMethod,
+          reference: reference ?? null,
+          status: "PROCESSED",
+          processedAt: new Date(),
+          createdById: user.id,
+        },
+      });
+
+      return { refund, payment, refunds, resolvedAmount, gatewayRefundId: null };
+    },
+    { maxWait: 10000, timeout: 20000 },
+  );
+
+  const refundSummary = summarizeRefunds(
+    [outcome.payment],
+    [
+      ...outcome.refunds,
+      { amount: outcome.resolvedAmount, status: outcome.refund.status },
+    ],
+  );
 
   await client.del(`AdminBookings:${propertyId}`);
   await deleteOccupancyCache(propertyId);
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        {
-          bookingId: updatedBooking.id,
-          paymentStatus: refundStatus,
-          refundAmount: resolvedAmount,
-          refundMethod,
-        },
-        refundStatus === "REFUNDED"
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        bookingId: booking.id,
+        refundId: outcome.refund.id,
+        refundStatus: outcome.refund.status,
+        refundAmount: outcome.resolvedAmount,
+        refundMethod: outcome.refund.method,
+        providerRefundId: outcome.gatewayRefundId,
+        refundedAmount: refundSummary.refundedAmount,
+        refundState: refundSummary.refundState,
+        refundSummary,
+      },
+      booking.paymentMode === "ONLINE"
+        ? "Refund initiated via Razorpay — the booking updates when the refund is processed"
+        : refundSummary.refundState === "FULL"
           ? "Payment refunded successfully"
           : "Partial refund recorded successfully",
-        200,
-      ),
-    );
+      200,
+    ),
+  );
 });
 
 /**
