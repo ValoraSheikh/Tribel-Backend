@@ -2,6 +2,7 @@ import crypto from "crypto";
 import prisma from "../lib/prisma/db.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import redis from "../lib/redis/redis-cache.ts";
+import { settleRefund } from "./refund-ledger.service.ts";
 
 const WEBHOOK_EVENT_TTL = 60 * 60 * 24 * 7;
 
@@ -15,7 +16,14 @@ export function verifyWebhookSignature(
     .update(rawBody.toString())
     .digest("hex");
 
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const computed = Buffer.from(expected, "utf8");
+  const received = Buffer.from(signature ?? "", "utf8");
+
+  // timingSafeEqual throws on a length mismatch — without this guard a garbage
+  // signature header becomes a 500 on a public endpoint instead of a rejection.
+  if (computed.length !== received.length) return false;
+
+  return crypto.timingSafeEqual(computed, received);
 }
 
 async function isDuplicateEvent(eventId: string): Promise<boolean> {
@@ -252,10 +260,13 @@ async function handlePaymentFailed(
 }
 
 /**
- * Razorpay refund lifecycle: refunds start as PENDING when we call the
- * gateway and settle asynchronously. The booking's paymentStatus flips to
- * REFUNDED (or PARTIALLY_PAID for partial amounts) only on `processed` —
- * an initiated refund is never reported as completed money movement.
+ * Razorpay refund lifecycle: a refund starts as PENDING when we call the gateway
+ * and settles asynchronously. Only the ledger row's own status changes here —
+ * refund state is derived on read, and the booking's paymentStatus keeps
+ * describing what the guest PAID. Settlement is delegated to the shared ledger
+ * writer so the webhook and the reconciliation sweep cannot disagree, and a
+ * refund the gateway knows about but we never recorded is recovered rather than
+ * dropped. A replayed webhook is a no-op.
  */
 async function handleRefundStatusChange(
   payload: Record<string, any>,
@@ -268,40 +279,15 @@ async function handleRefundStatusChange(
     return { status: "processed", message: "Missing refund entity" };
   }
 
-  const refundId = refundEntity.id;
-  const processed = payload.event === "refund.processed";
-  const refundAmount = refundEntity.amount ? refundEntity.amount / 100 : null;
-
-  const payment = await prisma.payment.findFirst({
-    where: { razorpayRefundId: refundId },
-    include: { booking: true },
+  const result = await settleRefund({
+    providerRefundId: String(refundEntity.id),
+    outcome: payload.event === "refund.processed" ? "PROCESSED" : "FAILED",
+    gatewayPaymentId: refundEntity.payment_id ?? null,
+    amount:
+      typeof refundEntity.amount === "number" ? refundEntity.amount / 100 : null,
+    reason:
+      refundEntity.error_description ?? refundEntity.error_reason ?? null,
   });
 
-  if (!payment) {
-    console.error(`Refund webhook for unknown refund id ${refundId}`);
-    return { status: "processed", message: "Unknown refund id" };
-  }
-
-  const refundStatus = processed ? "PROCESSED" : "FAILED";
-
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: { refundStatus },
-  });
-
-  if (!processed) {
-    return { status: "processed", message: "Refund failure recorded" };
-  }
-
-  const total = Number(payment.booking.totalPrice);
-  const refundedSoFar = refundAmount ?? Number(payment.refundAmount ?? 0);
-  const bookingPaymentStatus =
-    refundedSoFar < total ? "PARTIALLY_PAID" : "REFUNDED";
-
-  await prisma.booking.update({
-    where: { id: payment.bookingId },
-    data: { paymentStatus: bookingPaymentStatus },
-  });
-
-  return { status: "processed", message: "Refund processed" };
+  return { status: "processed", message: result.message };
 }
