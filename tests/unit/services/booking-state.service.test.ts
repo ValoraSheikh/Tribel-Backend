@@ -5,13 +5,19 @@ import {
   assertDateChangeAllowed,
   assertGuestCancellable,
   assertMarkPaidAllowed,
+  assertNoRefundInFlight,
   assertRefundAllowed,
+  assertRefundWindowOpen,
+  assertRefundWithinPaid,
   computeBookingPrice,
   computeProratedSettlement,
   isActionRequired,
   normalizeBookingStatus,
+  refundableBalance,
   resolveRefundMethod,
-  resolveRefundStatus,
+  resolveRefundState,
+  sumRefunds,
+  summarizeRefunds,
 } from "../../../src/services/booking-state.service.ts";
 import ApiError from "../../../src/lib/errors/ApiError.ts";
 
@@ -44,12 +50,65 @@ describe("computeBookingPrice", () => {
     expect(price.total).toBe(6000);
   });
 
-  it("charges two started months for a 45-night stay", () => {
+  it("prices leftover nights instead of rounding up to a whole month (45 nights)", () => {
     const price = computeBookingPrice(monthlyRate, daysFromNow(1), daysFromNow(46));
     expect(price.nights).toBe(45);
-    expect(price.months).toBe(2);
+    expect(price.months).toBe(1);
     expect(price.rateType).toBe("MONTHLY");
-    expect(price.total).toBe(12000);
+    expect(price.total).toBe(9000);
+  });
+
+  it("does not double the bill one night past a month boundary", () => {
+    const start = daysFromNow(1);
+    const at30 = computeBookingPrice(
+      monthlyRate,
+      start,
+      new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000),
+    );
+    const at31 = computeBookingPrice(
+      monthlyRate,
+      start,
+      new Date(start.getTime() + 31 * 24 * 60 * 60 * 1000),
+    );
+
+    expect(at30.total).toBe(6000);
+    expect(at31.nights).toBe(31);
+    expect(at31.months).toBe(1);
+    expect(at31.total).toBe(6200);
+    expect(at31.total).toBeLessThan(at30.total * 2);
+  });
+
+  it("charges two full months at 60 nights and adds the remainder at 61", () => {
+    const start = daysFromNow(1);
+    const at60 = computeBookingPrice(
+      monthlyRate,
+      start,
+      new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000),
+    );
+    const at61 = computeBookingPrice(
+      monthlyRate,
+      start,
+      new Date(start.getTime() + 61 * 24 * 60 * 60 * 1000),
+    );
+
+    expect(at60.months).toBe(2);
+    expect(at60.total).toBe(12000);
+    expect(at61.months).toBe(2);
+    expect(at61.total).toBe(12200);
+  });
+
+  it("never decreases as the stay gets longer", () => {
+    const start = daysFromNow(1);
+    let previous = 0;
+
+    for (let nights = 1; nights <= 95; nights += 1) {
+      const end = new Date(start.getTime() + nights * 24 * 60 * 60 * 1000);
+      const price = computeBookingPrice(monthlyRate, start, end);
+
+      expect(price.nights).toBe(nights);
+      expect(price.total).toBeGreaterThanOrEqual(previous);
+      previous = price.total;
+    }
   });
 
   it("never prices below one night", () => {
@@ -214,24 +273,155 @@ describe("assertRefundAllowed", () => {
   );
 });
 
-describe("resolveRefundStatus", () => {
-  const booking = { totalPrice: 5600 };
+describe("refund ledger", () => {
+  const captured = 5600;
 
-  it("resolves REFUNDED for full refunds", () => {
-    expect(resolveRefundStatus(booking, 5600)).toBe("REFUNDED");
+  it("excludes failed refunds from the refunded total", () => {
+    expect(
+      sumRefunds([
+        { amount: 2000, status: "PROCESSED" },
+        { amount: 1500, status: "FAILED" },
+      ]),
+    ).toBe(2000);
   });
 
-  it("resolves PARTIALLY_PAID for partial refunds", () => {
-    expect(resolveRefundStatus(booking, 2000)).toBe("PARTIALLY_PAID");
+  it("reports the remaining refundable balance", () => {
+    expect(
+      refundableBalance(captured, [{ amount: 600, status: "PROCESSED" }]),
+    ).toBe(5000);
+  });
+
+  it("never reports a negative balance", () => {
+    expect(
+      refundableBalance(captured, [{ amount: 9000, status: "PROCESSED" }]),
+    ).toBe(0);
+  });
+
+  it("derives NONE, PARTIAL and FULL refund state", () => {
+    expect(resolveRefundState(captured, [])).toBe("NONE");
+    expect(
+      resolveRefundState(captured, [{ amount: 1000, status: "PROCESSED" }]),
+    ).toBe("PARTIAL");
+    expect(
+      resolveRefundState(captured, [{ amount: 5600, status: "PROCESSED" }]),
+    ).toBe("FULL");
   });
 
   it("rejects zero and negative amounts", () => {
-    expect(() => resolveRefundStatus(booking, 0)).toThrowError(ApiError);
-    expect(() => resolveRefundStatus(booking, -100)).toThrowError(ApiError);
+    expect(() => assertRefundWithinPaid(captured, [], 0)).toThrowError(ApiError);
+    expect(() => assertRefundWithinPaid(captured, [], -100)).toThrowError(
+      ApiError,
+    );
   });
 
-  it("rejects amounts above the booking total", () => {
-    expect(() => resolveRefundStatus(booking, 6000)).toThrowError(ApiError);
+  it("allows refunding the full captured amount", () => {
+    expect(() => assertRefundWithinPaid(captured, [], 5600)).not.toThrow();
+  });
+
+  it("caps cumulatively so two partial refunds cannot exceed the capture", () => {
+    const alreadyRefunded = [{ amount: 4000, status: "PROCESSED" }];
+
+    expect(() =>
+      assertRefundWithinPaid(captured, alreadyRefunded, 1600),
+    ).not.toThrow();
+    expect(() =>
+      assertRefundWithinPaid(captured, alreadyRefunded, 1601),
+    ).toThrowError(ApiError);
+  });
+
+  it("refuses further refunds once the capture is fully refunded", () => {
+    const settled = [{ amount: 5600, status: "PROCESSED" }];
+
+    expect(() => assertRefundWithinPaid(captured, settled, 1)).toThrowError(
+      ApiError,
+    );
+  });
+
+  it("caps against the captured amount, not the booking total", () => {
+    // The guest paid 3000 of a 5600 booking: only 3000 was ever collected.
+    expect(() => assertRefundWithinPaid(3000, [], 3000)).not.toThrow();
+    expect(() => assertRefundWithinPaid(3000, [], 3001)).toThrowError(ApiError);
+  });
+
+  it("lets a failed refund be retried", () => {
+    const failed = [{ amount: 3000, status: "FAILED" }];
+
+    expect(() => assertRefundWithinPaid(captured, failed, 3000)).not.toThrow();
+  });
+
+  it("blocks a second refund while one is still in flight", () => {
+    expect(() => assertNoRefundInFlight([])).not.toThrow();
+    expect(() =>
+      assertNoRefundInFlight([{ amount: 2000, status: "PROCESSED" }]),
+    ).not.toThrow();
+    expect(() =>
+      assertNoRefundInFlight([{ amount: 500, status: "FAILED" }]),
+    ).not.toThrow();
+
+    expect(() =>
+      assertNoRefundInFlight([{ amount: 2000, status: "PENDING" }]),
+    ).toThrowError(/already being processed/);
+  });
+
+  it("allows refunding up to the gateway's six-month window", () => {
+    const capturedAt = new Date("2026-01-15T00:00:00.000Z");
+
+    // Exactly six months later is still inside the window; a moment past it is not.
+    expect(() =>
+      assertRefundWindowOpen(capturedAt, new Date("2026-07-15T00:00:00.000Z")),
+    ).not.toThrow();
+    expect(() =>
+      assertRefundWindowOpen(
+        capturedAt,
+        new Date("2026-07-15T00:00:00.001Z"),
+      ),
+    ).toThrowError(ApiError);
+  });
+
+  it("summarizes a booking's money against the captured amount", () => {
+    const summary = summarizeRefunds(
+      [
+        { amount: 3000, status: "PAID" },
+        { amount: 2600, status: "FAILED" },
+      ],
+      [{ amount: 1000, status: "PROCESSED" }],
+    );
+
+    expect(summary.capturedAmount).toBe(3000);
+    expect(summary.refundedAmount).toBe(1000);
+    expect(summary.refundableAmount).toBe(2000);
+    expect(summary.refundState).toBe("PARTIAL");
+    expect(summary.refundPending).toBe(false);
+    expect(summary.refundFailed).toBe(false);
+  });
+
+  it("flags in-flight and failed refunds without counting failed money", () => {
+    const summary = summarizeRefunds(
+      [{ amount: 5600, status: "PAID" }],
+      [
+        { amount: 600, status: "PENDING" },
+        { amount: 5000, status: "FAILED" },
+      ],
+    );
+
+    expect(summary.refundedAmount).toBe(600);
+    expect(summary.refundState).toBe("PARTIAL");
+    expect(summary.refundPending).toBe(true);
+    expect(summary.refundFailed).toBe(true);
+  });
+
+  it("reports a fully refunded booking and tolerates unloaded relations", () => {
+    const full = summarizeRefunds(
+      [{ amount: 5600, status: "PAID" }],
+      [{ amount: 5600, status: "PROCESSED" }],
+    );
+    expect(full.refundState).toBe("FULL");
+    expect(full.refundableAmount).toBe(0);
+
+    const empty = summarizeRefunds(undefined, undefined);
+    expect(empty.refundState).toBe("NONE");
+    expect(empty.capturedAmount).toBe(0);
+    expect(empty.refundableAmount).toBe(0);
   });
 });
 
