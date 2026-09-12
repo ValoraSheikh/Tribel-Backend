@@ -6,18 +6,11 @@ import {
   getAdminProperties,
   getPropertyDetail,
 } from "../../../src/controller/property.controller.ts";
-import testDB from "../../setup.ts";
+import testDB, { resetTestDatabase } from "../../setup.ts";
 
 describe("Integration: Property Controller Suite", () => {
   beforeEach(async () => {
-    await testDB.idempotencyKey.deleteMany({});
-    await testDB.booking.deleteMany({});
-    await testDB.bed.deleteMany({});
-    await testDB.room.deleteMany({});
-    await testDB.roomTemplate.deleteMany({});
-    await testDB.property.deleteMany({});
-    await testDB.tenant.deleteMany({});
-    await testDB.user.deleteMany({});
+    await resetTestDatabase();
   });
 
   afterEach(() => {
