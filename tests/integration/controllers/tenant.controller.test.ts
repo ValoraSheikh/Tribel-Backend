@@ -6,18 +6,11 @@ import {
   updateTenant,
 } from "../../../src/controller/tenant.controller.ts";
 import { ApiError } from "../../../src/lib/index.ts";
-import testDB from "../../setup.ts";
+import testDB, { resetTestDatabase } from "../../setup.ts";
 
 describe("Integration: Tenant Controller Suite", () => {
   beforeEach(async () => {
-    await testDB.idempotencyKey.deleteMany({});
-    await testDB.booking.deleteMany({});
-    await testDB.bed.deleteMany({});
-    await testDB.room.deleteMany({});
-    await testDB.roomTemplate.deleteMany({});
-    await testDB.property.deleteMany({});
-    await testDB.tenant.deleteMany({});
-    await testDB.user.deleteMany({});
+    await resetTestDatabase();
   });
 
   afterEach(() => {

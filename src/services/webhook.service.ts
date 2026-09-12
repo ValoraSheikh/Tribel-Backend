@@ -2,7 +2,7 @@ import crypto from "crypto";
 import prisma from "../lib/prisma/db.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
 import redis from "../lib/redis/redis-cache.ts";
-import rabbitmq from "../lib/rabbitmq/config/rabbitmq.ts";
+import { settleRefund } from "./refund-ledger.service.ts";
 
 const WEBHOOK_EVENT_TTL = 60 * 60 * 24 * 7;
 
@@ -16,7 +16,14 @@ export function verifyWebhookSignature(
     .update(rawBody.toString())
     .digest("hex");
 
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const computed = Buffer.from(expected, "utf8");
+  const received = Buffer.from(signature ?? "", "utf8");
+
+  // timingSafeEqual throws on a length mismatch — without this guard a garbage
+  // signature header becomes a 500 on a public endpoint instead of a rejection.
+  if (computed.length !== received.length) return false;
+
+  return crypto.timingSafeEqual(computed, received);
 }
 
 async function isDuplicateEvent(eventId: string): Promise<boolean> {
@@ -63,6 +70,9 @@ export async function processWebhookEvent(
       return await handleOrderPaid(payload);
     case "payment.failed":
       return await handlePaymentFailed(payload);
+    case "refund.processed":
+    case "refund.failed":
+      return await handleRefundStatusChange(payload);
     default:
       return {
         status: "unrecognized",
@@ -123,60 +133,41 @@ async function handleOrderPaid(
     return { status: "processed", message: "Payment already captured" };
   }
 
-  await securedDB.$transaction(async (tx) => {
-    await tx.payment.upsert({
-      where: { razorpayOrderId: orderId },
-      create: {
-        bookingId,
-        guestId: userId,
-        provider: "RAZORPAY",
-        status: "PAID",
-        amount,
-        currency,
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        paidAt: new Date(),
-        metadata: paymentEntity.notes || {},
-      },
-      update: {
-        status: "PAID",
-        razorpayPaymentId: paymentId,
-        paidAt: new Date(),
-        amount,
-        currency,
-        metadata: paymentEntity.notes || {},
-        failureReason: null,
-      },
+    // Payment is captured, but the booking still awaits admin approval per
+    // the booking policy — approval is acceptance, not money.
+    await securedDB.$transaction(async (tx) => {
+      await tx.payment.upsert({
+        where: { razorpayOrderId: orderId },
+        create: {
+          bookingId,
+          guestId: userId,
+          provider: "RAZORPAY",
+          status: "PAID",
+          amount,
+          currency,
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          paidAt: new Date(),
+          metadata: paymentEntity.notes || {},
+        },
+        update: {
+          status: "PAID",
+          razorpayPaymentId: paymentId,
+          paidAt: new Date(),
+          amount,
+          currency,
+          metadata: paymentEntity.notes || {},
+          failureReason: null,
+        },
+      });
+
+      await tx.booking.update({
+        where: { id: bookingId, paymentStatus: "PENDING" },
+        data: { paymentStatus: "PAID", paymentMode: "ONLINE" },
+      });
     });
 
-    await tx.booking.update({
-      where: { id: bookingId, paymentStatus: "PENDING" },
-      data: {
-        paymentStatus: "PAID",
-        status: "CONFIRMED",
-        paymentMode: "ONLINE",
-      },
-    });
-  });
-
-  try {
-    const msg = { bookingId, paymentId, userId, auth0Id, tenantId };
-    await rabbitmq({
-      msg: JSON.stringify(msg),
-      exchange: "tribel.events",
-      routingKey: "invoice",
-    });
-
-    await rabbitmq({
-      msg: JSON.stringify(msg),
-      exchange: "tribel.events",
-      routingKey: "email",
-    });
-  } catch (err) {
-    console.error("Failed to emit events for booking", bookingId, err);
-  }
-
-  return { status: "processed", message: "Payment captured successfully" };
+    return { status: "processed", message: "Payment captured successfully" };
 }
 
 async function handlePaymentFailed(
@@ -266,4 +257,37 @@ async function handlePaymentFailed(
   });
 
   return { status: "processed", message: "Payment failed recorded" };
+}
+
+/**
+ * Razorpay refund lifecycle: a refund starts as PENDING when we call the gateway
+ * and settles asynchronously. Only the ledger row's own status changes here —
+ * refund state is derived on read, and the booking's paymentStatus keeps
+ * describing what the guest PAID. Settlement is delegated to the shared ledger
+ * writer so the webhook and the reconciliation sweep cannot disagree, and a
+ * refund the gateway knows about but we never recorded is recovered rather than
+ * dropped. A replayed webhook is a no-op.
+ */
+async function handleRefundStatusChange(
+  payload: Record<string, any>,
+): Promise<{
+  status: "processed"; message: string
+}> {
+  const refundEntity = payload.payload?.refund?.entity;
+  if (!refundEntity?.id) {
+    console.error("Missing refund entity in refund webhook payload");
+    return { status: "processed", message: "Missing refund entity" };
+  }
+
+  const result = await settleRefund({
+    providerRefundId: String(refundEntity.id),
+    outcome: payload.event === "refund.processed" ? "PROCESSED" : "FAILED",
+    gatewayPaymentId: refundEntity.payment_id ?? null,
+    amount:
+      typeof refundEntity.amount === "number" ? refundEntity.amount / 100 : null,
+    reason:
+      refundEntity.error_description ?? refundEntity.error_reason ?? null,
+  });
+
+  return { status: "processed", message: result.message };
 }

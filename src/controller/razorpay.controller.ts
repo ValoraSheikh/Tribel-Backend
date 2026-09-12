@@ -16,8 +16,6 @@ const razorpay = new Razorpay({
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
   const { bookingId } = req.body;
 
-  console.log("Booking id", bookingId);
-
   const securedDB = getSecuredClient({
     userId: req.user.id,
     tenantId: "",
@@ -191,12 +189,15 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
       },
     });
 
+    // Payment never approves a booking: the guest is paid up, but the booking
+    // stays PENDING until an admin accepts it. The order.paid webhook already
+    // takes this line — this path used to confirm, which made the same event
+    // produce two different booking states and skipped approval entirely.
     await tx.booking.update({
       where: { id: bookingId },
       data: {
         paymentStatus: "PAID",
         paymentMode: "ONLINE",
-        status: "CONFIRMED",
       },
     });
 

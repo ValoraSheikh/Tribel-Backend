@@ -5,7 +5,7 @@ import {
   updateUserProfile,
   deleteUser,
 } from "../../../src/controller/user.controller.ts";
-import testDB from "../../setup.ts";
+import testDB, { resetTestDatabase } from "../../setup.ts";
 
 // 1. MOCK REDIS SO IT ALWAYS HITS THE DATABASE
 vi.mock("../../../src/lib/redis/redis-cache.ts", () => ({
@@ -22,14 +22,7 @@ vi.mock("../../../src/lib/redis/redis.ts", () => ({
 
 describe("Integration: User Controller Suite", () => {
   beforeEach(async () => {
-    await testDB.idempotencyKey.deleteMany({});
-    await testDB.booking.deleteMany({});
-    await testDB.bed.deleteMany({});
-    await testDB.room.deleteMany({});
-    await testDB.roomTemplate.deleteMany({});
-    await testDB.property.deleteMany({});
-    await testDB.tenant.deleteMany({});
-    await testDB.user.deleteMany({});
+    await resetTestDatabase();
   });
 
   afterEach(() => {

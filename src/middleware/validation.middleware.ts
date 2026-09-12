@@ -231,7 +231,8 @@ export const bookingValidation = validate(
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       // bedId: z.string().min(1).trim(),
-      paymentMode: z.enum(["OFFLINE", "ONLINE", ]),
+      paymentMode: z.enum(["OFFLINE", "ONLINE",]),
+      phoneNo: z.string().min(10).max(10).trim(),
     }),
     params: z.object({}).optional(),
     query: z.object({}).optional(),
@@ -256,6 +257,64 @@ export const bookingStatusValidation = validate(
     body: z.object({
       bookingId: z.string().uuid(),
       action: z.enum(["APPROVE", "REJECT"]),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const markPaidValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      provider: z.enum(["CASH", "UPI", "BANK_TRANSFER"]).optional(),
+      reference: z.string().max(255).optional(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const assignBedValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      bedId: z.string().uuid(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const updateDatesValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+    }),
+    params: z.object({
+      propertyId: z.string().min(1).optional(),
+    }),
+    query: z.object({}).optional(),
+  }),
+);
+
+export const refundValidation = validate(
+  z.object({
+    body: z.object({
+      bookingId: z.string().uuid(),
+      amount: z.number().positive().optional(),
+      method: z
+        .enum(["CASH", "UPI", "BANK_TRANSFER", "RAZORPAY"])
+        .optional(),
+      reference: z.string().max(255).optional(),
     }),
     params: z.object({
       propertyId: z.string().min(1),

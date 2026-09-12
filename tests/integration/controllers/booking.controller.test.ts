@@ -11,7 +11,7 @@ import {
   getOccupancy,
   updateBookingStatus,
 } from "../../../src/controller/booking.controller.ts";
-import testDB from "../../setup.ts";
+import testDB, { resetTestDatabase } from "../../setup.ts";
 import { v4 as uuidv4 } from "uuid";
 
 vi.mock("../../../src/lib/redis/redis-lock.ts", () => ({
@@ -21,14 +21,7 @@ vi.mock("../../../src/lib/redis/redis-lock.ts", () => ({
 
 describe("Integration: Booking Controller Suite", () => {
   beforeEach(async () => {
-    await testDB.idempotencyKey.deleteMany({});
-    await testDB.booking.deleteMany({});
-    await testDB.bed.deleteMany({});
-    await testDB.room.deleteMany({});
-    await testDB.roomTemplate.deleteMany({});
-    await testDB.property.deleteMany({});
-    await testDB.tenant.deleteMany({});
-    await testDB.user.deleteMany({});
+    await resetTestDatabase();
   });
 
   afterEach(() => {

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  assignBookingBed,
   cancelAdminBooking,
   cancelBooking,
   createBooking,
@@ -8,15 +9,23 @@ import {
   getBookingsForAdmin,
   getOccupancy,
   getUserBookings,
+  markAdminPaymentPaid,
+  recordAdminPaymentRefund,
+  updateAdminBookingDates,
   updateBookingStatus,
+  updateGuestBookingDates,
   updateUserBooking,
 } from "../controller/booking.controller.ts";
 import { restrictTo } from "../lib/index.ts";
 import pkg from "express-openid-connect";
 import {
+  assignBedValidation,
   bookingValidation,
   bookingStatusValidation,
+  markPaidValidation,
   occupancyValidation,
+  refundValidation,
+  updateDatesValidation,
 } from "../middleware/validation.middleware.ts";
 import {
   bookingRateLimit,
@@ -52,6 +61,15 @@ router.patch(
   bookingStatusValidation,
   updateBookingStatus,
 );
+// Registered before "/:bookingId" — Express matches in order, and a literal
+// path must win over the parameterised one or "dates" is read as a booking id.
+router.patch(
+  "/dates",
+  requiresAuth(),
+  bookingRateLimit,
+  updateDatesValidation,
+  updateGuestBookingDates,
+);
 router.patch(
   "/:bookingId",
   requiresAuth(),
@@ -84,6 +102,38 @@ router.patch(
   requiresAuth(),
   restrictTo("Admin", "Super_Admin"),
   cancelAdminBooking,
+);
+router.patch(
+  "/admin/:propertyId/payment/paid",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  markPaidValidation,
+  markAdminPaymentPaid,
+);
+router.patch(
+  "/admin/:propertyId/payment/refund",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  refundValidation,
+  recordAdminPaymentRefund,
+);
+router.patch(
+  "/admin/:propertyId/booking/assign-bed",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  assignBedValidation,
+  assignBookingBed,
+);
+router.patch(
+  "/admin/:propertyId/booking/dates",
+  requiresAuth(),
+  bookingRateLimit,
+  restrictTo("Admin", "Super_Admin"),
+  updateDatesValidation,
+  updateAdminBookingDates,
 );
 
 export default router;
