@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ARG GIT_SHA=dev
+ENV APP_VERSION=$GIT_SHA
+
 COPY package*.json ./
 RUN npm install
 
