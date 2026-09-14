@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import prisma from "../lib/prisma/db.ts";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
@@ -195,7 +196,7 @@ export const createBooking = asyncHandler(async (req, res) => {
       routingKey: "email",
     });
   } catch (err) {
-    console.error("Failed to emit booking email event", err);
+    logger.error({ err }, "Failed to emit booking email event");
   }
 
   await client.del(`roomTemplateDetail:${roomTemplateId}`);
@@ -1393,7 +1394,7 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         routingKey: "invoice",
       });
     } catch (err) {
-      console.error("Failed to emit invoice event for booking", booking.id, err);
+      logger.error({ err, bookingId: booking.id }, "Failed to emit invoice event for booking");
     }
   }
 

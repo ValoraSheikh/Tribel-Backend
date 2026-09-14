@@ -1,3 +1,4 @@
+import logger from "../logger.ts";
 import dotenv from "dotenv";
 import pkg from "express-openid-connect";
 
@@ -10,7 +11,7 @@ if (
   !process.env.BASE_URL ||
   !process.env.CLIENT_ID
 ) {
-  console.error("Missing one or more required Auth0 environment variables.");
+  logger.error("Missing one or more required Auth0 environment variables.");
   process.exit(1);
 }
 

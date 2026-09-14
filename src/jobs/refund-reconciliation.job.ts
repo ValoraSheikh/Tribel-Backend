@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import cron from "node-cron";
 import prisma from "../lib/prisma/db.ts";
 import client from "../lib/redis/redis-cache.ts";
@@ -61,7 +62,7 @@ export async function reconcilePendingRefunds(
 
     if (now.getTime() - refund.createdAt.getTime() > STUCK_AGE_MS) {
       result.stuck += 1;
-      console.error(
+      logger.error(
         `[refund-reconciliation] refund ${providerRefundId} has been PENDING for over 7 days`,
       );
       continue;
@@ -93,9 +94,9 @@ export async function reconcilePendingRefunds(
     } catch (err) {
       // One bad refund must not abort the sweep for the others.
       result.skipped += 1;
-      console.error(
+      logger.error(
+        { err },
         `[refund-reconciliation] could not reconcile refund ${providerRefundId}`,
-        err,
       );
     }
   }
@@ -122,7 +123,7 @@ async function runReconciliation(
       "NX",
     );
   } catch (err) {
-    console.error("[refund-reconciliation] could not acquire lock", err);
+    logger.error({ err }, "[refund-reconciliation] could not acquire lock");
     return null;
   }
 
@@ -132,7 +133,7 @@ async function runReconciliation(
     const result = await reconcilePendingRefunds();
 
     if (result.checked > 0 || result.stuck > 0) {
-      console.log(
+      logger.info(
         `[refund-reconciliation] ${trigger}: checked ${result.checked}, settled ${result.settled}, ` +
           `still pending ${result.pending}, stuck ${result.stuck}`,
       );
@@ -140,7 +141,7 @@ async function runReconciliation(
 
     return result;
   } catch (err) {
-    console.error(`[refund-reconciliation] ${trigger} run failed`, err);
+    logger.error({ err }, `[refund-reconciliation] ${trigger} run failed`);
     return null;
   } finally {
     await client.del(RECONCILE_LOCK_KEY);

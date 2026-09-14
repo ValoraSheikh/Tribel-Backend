@@ -7,6 +7,10 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      OTEL_SERVICE_NAME: tribel-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://otel.tribel.in
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     restart: unless-stopped
     container_name: tribel
     depends_on:

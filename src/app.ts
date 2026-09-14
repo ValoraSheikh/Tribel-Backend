@@ -3,7 +3,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import hpp from "hpp";
-import morgan from "morgan";
+import { pinoHttp } from "pino-http";
+import logger from "./lib/logger.ts";
 import dotenv from "dotenv";
 import { createUser, user, type UserDetail } from "./lib/user.ts";
 import { loginRateLimit } from "./middleware/rate-limit.middleware.ts";
@@ -56,9 +57,7 @@ app.use(cookieParser());
 app.use(helmet());
 app.use(hpp());
 
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
+app.use(pinoHttp({ logger }));
 
 app.get("/", (req, res) => {
   res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");

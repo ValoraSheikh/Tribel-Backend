@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import prisma from "../lib/prisma/db.ts";
 import client from "../lib/redis/redis-cache.ts";
 import { deleteOccupancyCache } from "../lib/redis/occupancy-cache.ts";
@@ -77,7 +78,7 @@ export async function settleRefund(
     await invalidateRefundCaches(refund.booking.propertyId);
 
     if (outcome === "FAILED") {
-      console.error(
+      logger.error(
         `[refund] ${providerRefundId} failed at the gateway${reason ? `: ${reason}` : ""}`,
       );
     }
@@ -91,7 +92,7 @@ export async function settleRefund(
   }
 
   if (!gatewayPaymentId) {
-    console.error(
+    logger.error(
       `[refund] webhook for unknown refund id ${providerRefundId} and no payment id to recover it`,
     );
     return { settled: false, recovered: false, message: "Unknown refund id" };
@@ -108,7 +109,7 @@ export async function settleRefund(
   });
 
   if (!payment) {
-    console.error(
+    logger.error(
       `[refund] refund ${providerRefundId} has no ledger row and payment ${gatewayPaymentId} is unknown`,
     );
     return { settled: false, recovered: false, message: "Unknown refund id" };
@@ -142,7 +143,7 @@ export async function settleRefund(
 
   await invalidateRefundCaches(payment.booking.propertyId);
 
-  console.warn(
+  logger.warn(
     `[refund] recovered ${providerRefundId} from the gateway — it had no local ledger row`,
   );
 

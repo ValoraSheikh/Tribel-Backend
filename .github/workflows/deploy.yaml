@@ -39,7 +39,7 @@ jobs:
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build Image
-        run: docker build -t sheikhvalora/tribel-backend:latest .
+        run: docker build --build-arg GIT_SHA=${{ github.sha }} -t sheikhvalora/tribel-backend:latest .
 
       - name: Push Image
         run: docker push sheikhvalora/tribel-backend:latest
