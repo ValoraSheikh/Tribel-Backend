@@ -1,3 +1,4 @@
+import logger from "../../logger.ts";
 import invoiceWorker from "../workers/invoice.worker.ts";
 import createRabbitMQConnection from "../config/connection.ts";
 
@@ -39,7 +40,7 @@ async function invoiceConsumer() {
       if (msg) {
         const content = JSON.parse(msg.content.toString());
 
-        console.log(" [x] Received '%s'", content);
+        logger.info(" [x] Received '%s'", content);
 
         try {
           const deathHeaders = msg.properties.headers?.["x-death"] as
@@ -62,12 +63,12 @@ async function invoiceConsumer() {
           }
 
           const result = await invoiceWorker({ msg: content });
-          console.log(" [x] Result '%s'", result);
+          logger.info(" [x] Result '%s'", result);
           channel.ack(msg);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
-          console.error(message);
+          logger.error(message);
           channel.nack(msg, false, false);
         }
       }

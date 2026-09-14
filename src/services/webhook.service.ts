@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import crypto from "crypto";
 import prisma from "../lib/prisma/db.ts";
 import { getSecuredClient } from "../lib/prisma/prisma-rls.ts";
@@ -91,7 +92,7 @@ async function handleOrderPaid(
   const orderEntity = payload.payload?.order?.entity;
 
   if (!paymentEntity || !orderEntity) {
-    console.error("Missing payment or order entity in order.paid payload");
+    logger.error("Missing payment or order entity in order.paid payload");
     return { status: "processed", message: "Missing entities in payload" };
   }
 
@@ -102,18 +103,18 @@ async function handleOrderPaid(
   const currency = paymentEntity.currency || "INR";
 
   if (!orderId || !paymentId) {
-    console.error("Missing order_id or payment_id in order.paid payload");
+    logger.error("Missing order_id or payment_id in order.paid payload");
     return { status: "processed", message: "Missing order_id or payment_id" };
   }
 
   if (!bookingId) {
-    console.error(`Order ${orderId} has no receipt`);
+    logger.error(`Order ${orderId} has no receipt`);
     return { status: "processed", message: "Order has no receipt" };
   }
 
   const context = extractContextFromNotes(paymentEntity.notes ?? orderEntity.notes);
   if (!context) {
-    console.error(`Missing webhook context for order ${orderId}`);
+    logger.error(`Missing webhook context for order ${orderId}`);
     return { status: "processed", message: "Missing webhook context" };
   }
 
@@ -178,7 +179,7 @@ async function handlePaymentFailed(
 }> {
   const paymentEntity = payload.payload?.payment?.entity;
   if (!paymentEntity) {
-    console.error("Missing payment entity in payment.failed payload");
+    logger.error("Missing payment entity in payment.failed payload");
     return { status: "processed", message: "Missing payment entity" };
   }
 
@@ -193,18 +194,18 @@ async function handlePaymentFailed(
     "Payment failed";
 
   if (!orderId || !paymentId) {
-    console.error("Missing order_id or payment_id in payment.failed payload");
+    logger.error("Missing order_id or payment_id in payment.failed payload");
     return { status: "processed", message: "Missing order_id or payment_id" };
   }
 
   if (!bookingId) {
-    console.error(`Payment ${paymentId} has no bookingId in notes`);
+    logger.error(`Payment ${paymentId} has no bookingId in notes`);
     return { status: "processed", message: "Missing booking context" };
   }
 
   const context = extractContextFromNotes(paymentEntity.notes);
   if (!context) {
-    console.error(`Missing webhook context for order ${orderId}`);
+    logger.error(`Missing webhook context for order ${orderId}`);
     return { status: "processed", message: "Missing webhook context" };
   }
 
@@ -275,7 +276,7 @@ async function handleRefundStatusChange(
 }> {
   const refundEntity = payload.payload?.refund?.entity;
   if (!refundEntity?.id) {
-    console.error("Missing refund entity in refund webhook payload");
+    logger.error("Missing refund entity in refund webhook payload");
     return { status: "processed", message: "Missing refund entity" };
   }
 

@@ -1,3 +1,4 @@
+import logger from "../../logger.ts";
 import type { Channel, ChannelModel } from "amqplib";
 import { connect } from "amqplib";
 
@@ -27,11 +28,11 @@ async function createRabbitMQConnection() {
     });
 
     connection.on("error", (err) => {
-      console.error("RabbitMQ connection error:", err);
+      logger.error({ err }, "RabbitMQ connection error");
     });
 
     connection.on("close", () => {
-      console.log("RabbitMQ connection closed");
+      logger.info("RabbitMQ connection closed");
     });
     
     return channel;

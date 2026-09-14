@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { ApiError, ApiResponse, asyncHandler } from "../lib/index.ts";
@@ -234,18 +235,18 @@ export const handleRazorpayWebhook = asyncHandler(async (req, res) => {
 
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    console.error("RAZORPAY_WEBHOOK_SECRET is not configured");
+    logger.error("RAZORPAY_WEBHOOK_SECRET is not configured");
     throw new ApiError("Webhook configuration error", 500);
   }
 
   const isValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
   if (!isValid) {
-    console.warn("Invalid webhook signature received");
+    logger.warn("Invalid webhook signature received");
     throw new ApiError("Invalid signature", 400);
   }
 
   const payload = req.body;
-  console.log(`Webhook event received: ${payload.event} (id: ${eventId})`);
+  logger.info(`Webhook event received: ${payload.event} (id: ${eventId})`);
 
   const result = await processWebhookEvent(eventId, payload);
 

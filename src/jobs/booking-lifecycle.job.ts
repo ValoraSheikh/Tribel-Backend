@@ -1,3 +1,4 @@
+import logger from "../lib/logger.ts";
 import cron from "node-cron";
 import prisma from "../lib/prisma/db.ts";
 import client from "../lib/redis/redis-cache.ts";
@@ -116,7 +117,7 @@ async function runSweep(
       "NX",
     );
   } catch (err) {
-    console.error("[booking-lifecycle] could not acquire sweep lock", err);
+    logger.error({ err }, "[booking-lifecycle] could not acquire sweep lock");
     return null;
   }
 
@@ -124,14 +125,14 @@ async function runSweep(
 
   try {
     const result = await sweepBookingLifecycle();
-    console.log(
+    logger.info(
       `[booking-lifecycle] ${trigger} sweep: ${result.startedToOngoing} -> ONGOING, ` +
         `${result.endedToCompleted} -> COMPLETED, ` +
         `${result.actionRequired} need attention`,
     );
     return result;
   } catch (err) {
-    console.error(`[booking-lifecycle] ${trigger} sweep failed`, err);
+    logger.error({ err }, `[booking-lifecycle] ${trigger} sweep failed`);
     return null;
   } finally {
     await client.del(SWEEP_LOCK_KEY);
