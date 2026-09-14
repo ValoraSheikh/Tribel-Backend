@@ -158,3 +158,6 @@ AGENTS.md
 docs
 
 CONTEXT.md
+
+# Foundry / SigNoz generated output (casting.yaml and the lock file stay tracked)
+deploy/signoz/pours/
