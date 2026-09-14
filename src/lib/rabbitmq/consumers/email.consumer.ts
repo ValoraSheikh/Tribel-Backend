@@ -1,3 +1,4 @@
+import logger from "../../logger.ts";
 import emailWorker from "../workers/email.worker.tsx";
 import createRabbitMQConnection from "../config/connection.ts";
 
@@ -34,7 +35,7 @@ async function emailConsumer() {
     async (msg) => {
       if (msg) {
         const content = JSON.parse(msg.content.toString());
-        console.log(" [x] Received '%s'", content);
+        logger.info(" [x] Received '%s'", content);
 
         try {
           const deathHeaders = msg.properties.headers?.["x-death"] as
@@ -62,12 +63,12 @@ async function emailConsumer() {
           }
 
           const result = await emailWorker({ msg: content });
-          console.log(" [x] Result '%s'", result);
+          logger.info(" [x] Result '%s'", result);
           channel.ack(msg);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
-          console.error(errorMessage);
+          logger.error(errorMessage);
           channel.nack(msg, false, false);
         }
       }
