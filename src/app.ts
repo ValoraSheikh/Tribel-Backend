@@ -13,6 +13,7 @@ import {
   buildFrontendRedirect,
   getSafeReturnPath,
   normalizeFrontendOrigin,
+  resolveFrontendUrl,
 } from "./lib/auth/return-to.ts";
 
 import userRouter from "./routes/user.route.ts";
@@ -30,10 +31,7 @@ const app = express();
 dotenv.config({ path: "./.env" });
 
 const frontendOrigin = normalizeFrontendOrigin(
-  process.env.FRONTEND_URL ??
-    (process.env.NODE_ENV === "production"
-      ? "https://tribel.in/discover"
-      : "http://localhost:3001/discover"),
+  resolveFrontendUrl(process.env.NODE_ENV, process.env.FRONTEND_URL),
 );
 
 app.set("trust proxy", true);
